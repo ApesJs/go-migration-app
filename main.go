@@ -1,11 +1,12 @@
 package main
 
 import (
+	"github.com/ApesJs/go-migration-app/service"
 	_ "github.com/lib/pq"
-	"migration-app3/service"
 )
 
 func main() {
 	//service.UserService()
-	service.BDMService()
+	//service.BDMService()
+	service.BdmPersonaService()
 }

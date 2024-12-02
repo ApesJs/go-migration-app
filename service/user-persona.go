@@ -3,9 +3,9 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"github.com/ApesJs/go-migration-app/database"
 	"github.com/schollz/progressbar/v3"
 	"log"
-	"migration-app3/database"
 	"time"
 )
 

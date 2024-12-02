@@ -3,8 +3,8 @@ package database
 import (
 	"database/sql"
 	"fmt"
+	configApp "github.com/ApesJs/go-migration-app/config"
 	"log"
-	configApp "migration-app3/config"
 )
 
 func ConnectionDB() (*sql.DB, *sql.DB) {

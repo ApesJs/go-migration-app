@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/schollz/progressbar/v3"
 	"log"
-	"migration-app3/database"
+	"github.com/ApesJs/go-migration-app/database"
 	"time"
 )
 

@@ -3,7 +3,7 @@ package service
 import (
 	"fmt"
 	"log"
-	"migration-app3/database"
+	"github.com/ApesJs/go-migration-app/database"
 	"time"
 )
 
