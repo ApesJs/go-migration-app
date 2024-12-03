@@ -8,5 +8,6 @@ import (
 func main() {
 	//service.UserService()
 	//service.BDMService()
-	service.BdmPersonaService()
+	//service.BdmPersonaService()
+	service.ChangeCityIDPersonaService()
 }
