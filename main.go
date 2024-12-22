@@ -9,5 +9,7 @@ func main() {
 	//service.UserService()
 	//service.BDMService()
 	//service.BdmPersonaService()
-	service.ChangeCityIDPersonaService()
+	//service.ChangeCityIDPersonaService()
+	//service.MakeUCService()
+	service.TravelService()
 }
