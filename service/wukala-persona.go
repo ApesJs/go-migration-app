@@ -15,9 +15,10 @@ type DuplicatePhoneInfoWukala struct {
 }
 
 func WukalaPersonaService() {
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	fmt.Println("Memulai proses transfer data persona wukala...")
 
@@ -46,14 +47,14 @@ func WukalaPersonaService() {
 	}
 
 	for _, query := range alterTableQueries {
-		_, err := targetDB.Exec(query)
+		_, err := devIdentityDB.Exec(query)
 		if err != nil {
 			log.Fatal("Error saat menambahkan kolom:", err)
 		}
 	}
 
 	var totalRows int
-	err := targetDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
+	err := devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error saat menghitung total rows:", err)
 	}
@@ -74,7 +75,7 @@ func WukalaPersonaService() {
 		}),
 	)
 
-	checkStmt, err := targetDB.Prepare(`
+	checkStmt, err := devIdentityDB.Prepare(`
 		SELECT COUNT(*) FROM "user-persona" WHERE id = $1
 	`)
 	if err != nil {
@@ -83,7 +84,7 @@ func WukalaPersonaService() {
 	defer checkStmt.Close()
 
 	// Modified to check for existing phone numbers
-	checkPhoneStmt, err := targetDB.Prepare(`
+	checkPhoneStmt, err := devIdentityDB.Prepare(`
 		SELECT COUNT(*) FROM "user-persona" WHERE phone_number = $1 AND id != $2
 	`)
 	if err != nil {
@@ -91,7 +92,7 @@ func WukalaPersonaService() {
 	}
 	defer checkPhoneStmt.Close()
 
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
 		INSERT INTO "user-persona" (
 			id, phone_number, travel_id, "desc", code, fee,
 			web_visit, activated_at, discount, parent_id,
@@ -110,7 +111,7 @@ func WukalaPersonaService() {
 	}
 	defer insertStmt.Close()
 
-	updateStmt, err := targetDB.Prepare(`
+	updateStmt, err := devIdentityDB.Prepare(`
 		UPDATE "user-persona" SET
 			phone_number = $2,
 			travel_id = CASE WHEN $3::UUID IS NULL THEN travel_id ELSE $3::UUID END,
@@ -152,7 +153,7 @@ func WukalaPersonaService() {
 		duplicatePhones = make([]DuplicatePhoneInfoWukala, 0)
 	)
 
-	rows, err := targetDB.Query(`SELECT id FROM "user"`)
+	rows, err := devIdentityDB.Query(`SELECT id FROM "user"`)
 	if err != nil {
 		log.Fatal("Error querying user data:", err)
 	}
@@ -193,7 +194,7 @@ func WukalaPersonaService() {
 			approvedAt    sql.NullTime
 		)
 
-		err = sourceDB.QueryRow(`
+		err = prodExistingUmrahDB.QueryRow(`
 			SELECT 
 				travel_id, phone, "desc", code, fee, web_visit,
 				activated_at, discount, parent_id, fee_type,

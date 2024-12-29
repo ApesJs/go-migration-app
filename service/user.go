@@ -11,19 +11,20 @@ import (
 
 func UserService() {
 	//Panggil Koneksi Database
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	// Pastikan role 'wukala' ada di tabel role
 	var roleExists bool
-	err := targetDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, "wukala").Scan(&roleExists)
+	err := devIdentityDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, "wukala").Scan(&roleExists)
 	if err != nil {
 		log.Fatal("Error checking wukala role existence:", err)
 	}
 
 	if !roleExists {
-		_, err = targetDB.Exec(`INSERT INTO "role" (name, slug) VALUES ($1, $2)`, "Wukala", "wukala")
+		_, err = devIdentityDB.Exec(`INSERT INTO "role" (name, slug) VALUES ($1, $2)`, "Wukala", "wukala")
 		if err != nil {
 			log.Fatal("Error inserting wukala role:", err)
 		}
@@ -32,14 +33,14 @@ func UserService() {
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err = sourceDB.QueryRow("SELECT COUNT(*) FROM td_user WHERE role = 'user'").Scan(&totalRows)
+	err = prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM td_user WHERE role = 'user'").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
 
 	// Menghitung total travel agents
 	var totalTravelAgents int
-	err = sourceDB.QueryRow(`
+	err = prodExistingUmrahDB.QueryRow(`
 		SELECT COUNT(*) 
 		FROM td_user u
 		JOIN td_travel_agent t ON u.id = t.user_id
@@ -68,7 +69,7 @@ func UserService() {
 	)
 
 	// Prepare statement untuk cek travel agent
-	checkTravelAgentStmt, err := sourceDB.Prepare(`
+	checkTravelAgentStmt, err := prodExistingUmrahDB.Prepare(`
 		SELECT EXISTS(SELECT 1 FROM td_travel_agent WHERE user_id = $1)
 	`)
 	if err != nil {
@@ -77,21 +78,21 @@ func UserService() {
 	defer checkTravelAgentStmt.Close()
 
 	// Mengambil data dari database sumber
-	rows, err := sourceDB.Query("SELECT id, name, email, role, google_id, image, soft_delete, created_at, updated_at FROM td_user WHERE role = 'user'")
+	rows, err := prodExistingUmrahDB.Query("SELECT id, name, email, role, google_id, image, soft_delete, created_at, updated_at FROM td_user WHERE role = 'user'")
 	if err != nil {
 		log.Fatal("Error querying source database:", err)
 	}
 	defer rows.Close()
 
 	// Prepare statement untuk mengecek duplikasi
-	checkStmt, err := targetDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
+	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
 	defer checkStmt.Close()
 
 	// Prepare statement untuk insert
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
 		INSERT INTO "user" (
 			id, name, username, email, role,
 			google_id, is_active, email_verified,
@@ -122,7 +123,7 @@ func UserService() {
 	)
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

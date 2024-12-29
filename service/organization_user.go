@@ -10,13 +10,14 @@ import (
 
 func OrganizationUserService() {
 	// Panggil Koneksi Database
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err := sourceDB.QueryRow("SELECT COUNT(*) FROM td_travel_user").Scan(&totalRows)
+	err := prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM td_travel_user").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
@@ -39,7 +40,7 @@ func OrganizationUserService() {
 	)
 
 	// Mengambil data dari database sumber
-	rows, err := sourceDB.Query(`
+	rows, err := prodExistingUmrahDB.Query(`
 		SELECT 
 			travel_id, user_id, role
 		FROM td_travel_user
@@ -50,21 +51,21 @@ func OrganizationUserService() {
 	defer rows.Close()
 
 	// Prepare statement untuk mengecek keberadaan organization
-	checkOrgStmt, err := targetDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
+	checkOrgStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check organization statement:", err)
 	}
 	defer checkOrgStmt.Close()
 
 	// Prepare statement untuk mengecek keberadaan user
-	checkUserStmt, err := targetDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE id = $1`)
+	checkUserStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check user statement:", err)
 	}
 	defer checkUserStmt.Close()
 
 	// Prepare statement untuk mengecek duplikasi
-	checkDuplicateStmt, err := targetDB.Prepare(`
+	checkDuplicateStmt, err := devIdentityDB.Prepare(`
 		SELECT COUNT(*) FROM organization_user 
 		WHERE organization_id = $1 AND user_id = $2
 	`)
@@ -74,7 +75,7 @@ func OrganizationUserService() {
 	defer checkDuplicateStmt.Close()
 
 	// Prepare statement untuk insert
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
 		INSERT INTO organization_user (
 			organization_id, user_id, role,
 			created_at, modified_at,
@@ -99,7 +100,7 @@ func OrganizationUserService() {
 	)
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

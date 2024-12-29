@@ -27,15 +27,16 @@ type HotelJSON struct {
 
 func PackageService() {
 	// Koneksi Database
-	sourceDB, targetDB := database.ConnectionDB()
-	identityDB := database.ConnectionIdentityDB()
-	defer identityDB.Close()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	localUmrahDB := database.ConnectionLocalUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer devIdentityDB.Close()
+	defer prodExistingUmrahDB.Close()
+	defer localUmrahDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err := sourceDB.QueryRow(`
+	err := prodExistingUmrahDB.QueryRow(`
 		SELECT COUNT(*) 
 		FROM td_package 
 		WHERE soft_delete = false 
@@ -62,7 +63,7 @@ func PackageService() {
 	)
 
 	// Statement untuk mengecek organization_instance_id
-	orgInstanceStmt, err := identityDB.Prepare(`
+	orgInstanceStmt, err := devIdentityDB.Prepare(`
 		SELECT id 
 		FROM organization_instance 
 		WHERE organization_id = $1
@@ -74,7 +75,7 @@ func PackageService() {
 	defer orgInstanceStmt.Close()
 
 	// Statement untuk mendapatkan nama travel
-	travelStmt, err := sourceDB.Prepare(`
+	travelStmt, err := prodExistingUmrahDB.Prepare(`
 		SELECT name 
 		FROM td_travel 
 		WHERE id = $1
@@ -85,7 +86,7 @@ func PackageService() {
 	defer orgInstanceStmt.Close()
 
 	// Statement untuk mengecek hotel data
-	hotelStmt, err := sourceDB.Prepare(`
+	hotelStmt, err := prodExistingUmrahDB.Prepare(`
 		SELECT h.id, h.name, h.address, h.rate, h.logo, h.created_at, h.updated_at,
 			   c.id as city_id, c.name as city_name
 		FROM td_package_hotel ph
@@ -99,7 +100,7 @@ func PackageService() {
 	defer hotelStmt.Close()
 
 	// Statement untuk insert ke tabel package
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := localUmrahDB.Prepare(`
 		INSERT INTO package (
 			organization_id, organization_instance_id, package_type,
 			thumbnail, title, description, terms_condition,
@@ -121,7 +122,7 @@ func PackageService() {
 	defer insertStmt.Close()
 
 	// Query untuk mengambil data package
-	rows, err := sourceDB.Query(`
+	rows, err := prodExistingUmrahDB.Query(`
 		SELECT id, travel_id, departure_airline_id, arrival_airline_id,
 			   name, slug, image, type, share_desc, term_condition,
 			   facility, currency, dp_type, dp_amount, fee_type,
@@ -150,7 +151,7 @@ func PackageService() {
 	)
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := localUmrahDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

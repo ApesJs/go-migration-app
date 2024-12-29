@@ -11,13 +11,14 @@ import (
 
 func OrganizationInstanceService() {
 	// Panggil Koneksi Database
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err := sourceDB.QueryRow("SELECT COUNT(*) FROM td_travel").Scan(&totalRows)
+	err := prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM td_travel").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
@@ -40,7 +41,7 @@ func OrganizationInstanceService() {
 	)
 
 	// Mengambil data dari database sumber
-	rows, err := sourceDB.Query(`
+	rows, err := prodExistingUmrahDB.Query(`
 		SELECT 
 			id, name, address, is_active, created_at, updated_at,
 			image, phone, rda_id, xendit_channel, xendit_account_number,
@@ -56,21 +57,21 @@ func OrganizationInstanceService() {
 	defer rows.Close()
 
 	// Prepare statement untuk mengecek duplikasi (berdasarkan email karena unique)
-	checkStmt, err := targetDB.Prepare(`SELECT COUNT(*) FROM organization_instance WHERE email = $1`)
+	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization_instance WHERE email = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
 	defer checkStmt.Close()
 
 	// Prepare statement untuk mengecek keberadaan organization
-	checkOrgStmt, err := targetDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
+	checkOrgStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check organization statement:", err)
 	}
 	defer checkOrgStmt.Close()
 
 	// Prepare statement untuk insert
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
 		INSERT INTO organization_instance (
 			organization_id, type, name, slug, address,
 			country_id, province_id, city_id, is_active,
@@ -110,7 +111,7 @@ func OrganizationInstanceService() {
 	)
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

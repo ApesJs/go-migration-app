@@ -11,14 +11,15 @@ import (
 
 func ChangeCityIDPersonaService() {
 	// Connect to databases
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	fmt.Println("Starting City ID conversion process...")
 
 	// Step 1: Alter table to change city_id type to varchar
-	_, err := targetDB.Exec(`
+	_, err := devIdentityDB.Exec(`
 		ALTER TABLE "user-persona" 
 		ALTER COLUMN city_id TYPE varchar
 		USING city_id::varchar
@@ -30,7 +31,7 @@ func ChangeCityIDPersonaService() {
 
 	// Count total records to be processed
 	var totalRows int
-	err = targetDB.QueryRow(`SELECT COUNT(*) FROM "user-persona" WHERE city_id IS NOT NULL`).Scan(&totalRows)
+	err = devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user-persona" WHERE city_id IS NOT NULL`).Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
@@ -58,14 +59,14 @@ func ChangeCityIDPersonaService() {
 	)
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
 	defer tx.Rollback()
 
 	// Prepare statements
-	getCityNameStmt, err := sourceDB.Prepare(`
+	getCityNameStmt, err := prodExistingUmrahDB.Prepare(`
 		SELECT name 
 		FROM td_city 
 		WHERE id = $1
@@ -86,7 +87,7 @@ func ChangeCityIDPersonaService() {
 	defer updateCityStmt.Close()
 
 	// Get all user-persona records with city_id
-	rows, err := targetDB.Query(`
+	rows, err := devIdentityDB.Query(`
 		SELECT id, city_id 
 		FROM "user-persona" 
 		WHERE city_id IS NOT NULL

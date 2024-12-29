@@ -11,13 +11,14 @@ import (
 
 func BdmPersonaService() {
 	// Connect to databases
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	// Count total BDM users
 	var totalBdmUsers int
-	err := targetDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'bdm'`).Scan(&totalBdmUsers)
+	err := devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'bdm'`).Scan(&totalBdmUsers)
 	if err != nil {
 		log.Fatal("Error counting BDM users:", err)
 	}
@@ -40,14 +41,14 @@ func BdmPersonaService() {
 	)
 
 	// Get BDM users from target database
-	bdmRows, err := targetDB.Query(`SELECT id FROM "user" WHERE role = 'bdm'`)
+	bdmRows, err := devIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'bdm'`)
 	if err != nil {
 		log.Fatal("Error querying BDM users:", err)
 	}
 	defer bdmRows.Close()
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
@@ -77,7 +78,7 @@ func BdmPersonaService() {
 	defer insertStmt.Close()
 
 	// Prepare statement for getting phone from tr_rda
-	getRdaPhoneStmt, err := sourceDB.Prepare(`
+	getRdaPhoneStmt, err := prodExistingUmrahDB.Prepare(`
 		SELECT phone 
 		FROM tr_rda 
 		WHERE CAST(id AS VARCHAR(255)) = $1

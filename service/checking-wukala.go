@@ -2,23 +2,24 @@ package service
 
 import (
 	"fmt"
-	"log"
 	"github.com/ApesJs/go-migration-app/database"
+	"log"
 	"time"
 )
 
 func CheckingWukalaService() {
 	// Membuat koneksi database
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	waktuMulai := time.Now()
 	fmt.Println("Memulai proses pengecekan Wukala...")
 
 	// Mengambil semua user_id dari td_travel_agent (sumber)
 	var sourceUserIDs []string
-	sourceRows, err := sourceDB.Query("SELECT user_id FROM td_travel_agent")
+	sourceRows, err := prodExistingUmrahDB.Query("SELECT user_id FROM td_travel_agent")
 	if err != nil {
 		log.Fatal("Error saat mengambil data dari database sumber:", err)
 	}
@@ -34,7 +35,7 @@ func CheckingWukalaService() {
 
 	// Mengambil semua id dari tabel user dengan role wukala (target)
 	var targetUserIDs []string
-	targetRows, err := targetDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
+	targetRows, err := devIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
 	if err != nil {
 		log.Fatal("Error saat mengambil data dari database target:", err)
 	}
@@ -97,7 +98,7 @@ func CheckingWukalaService() {
 		for i, id := range wukalaTambahan {
 			// Mengambil detail user untuk wukala tambahan
 			var nama, email string
-			err := targetDB.QueryRow(`SELECT name, email FROM "user" WHERE id = $1`, id).Scan(&nama, &email)
+			err := devIdentityDB.QueryRow(`SELECT name, email FROM "user" WHERE id = $1`, id).Scan(&nama, &email)
 			if err != nil {
 				log.Printf("Error saat mengambil detail untuk user %s: %v", id, err)
 				continue
@@ -113,7 +114,7 @@ func CheckingWukalaService() {
 		for i, id := range wukalaTidakAda {
 			// Mengambil detail user untuk wukala yang tidak ada
 			var nama, email string
-			err := sourceDB.QueryRow("SELECT name, email FROM td_user WHERE id = $1", id).Scan(&nama, &email)
+			err := prodExistingUmrahDB.QueryRow("SELECT name, email FROM td_user WHERE id = $1", id).Scan(&nama, &email)
 			if err != nil {
 				log.Printf("Error saat mengambil detail untuk user %s: %v", id, err)
 				continue

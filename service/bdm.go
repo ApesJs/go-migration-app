@@ -3,28 +3,18 @@ package service
 import (
 	"database/sql"
 	"fmt"
+	"github.com/ApesJs/go-migration-app/database"
 	"github.com/schollz/progressbar/v3"
 	"log"
-	"github.com/ApesJs/go-migration-app/database"
 	"time"
 )
 
 func BDMService() {
 	//Panggil Koneksi Database
-	sourceDB, targetDB := database.ConnectionDB()
-	defer func(sourceDB *sql.DB) {
-		err := sourceDB.Close()
-		if err != nil {
-			log.Fatal("Error at sourceDB in user.go line 18:", err)
-		}
-	}(sourceDB)
-
-	defer func(targetDB *sql.DB) {
-		err := targetDB.Close()
-		if err != nil {
-			log.Fatal("Error at targetDB in user.go line 25:", err)
-		}
-	}(targetDB)
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	// Konstanta untuk role
 	const (
@@ -34,14 +24,14 @@ func BDMService() {
 
 	// Pertama, periksa apakah role 'bdm' sudah ada di tabel role
 	var roleExists bool
-	err := targetDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, roleSlug).Scan(&roleExists)
+	err := devIdentityDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, roleSlug).Scan(&roleExists)
 	if err != nil {
 		log.Fatal("Error checking role existence:", err)
 	}
 
 	// Jika role belum ada, insert role terlebih dahulu
 	if !roleExists {
-		_, err = targetDB.Exec(`INSERT INTO "role" (name, slug) 
+		_, err = devIdentityDB.Exec(`INSERT INTO "role" (name, slug) 
 							   VALUES ($1, $2)`,
 			roleName, roleSlug)
 		if err != nil {
@@ -52,7 +42,7 @@ func BDMService() {
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err = sourceDB.QueryRow("SELECT COUNT(*) FROM tr_rda").Scan(&totalRows)
+	err = prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM tr_rda").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
@@ -75,7 +65,7 @@ func BDMService() {
 	)
 
 	// Mengambil data dari database sumber
-	rows, err := sourceDB.Query("SELECT id, name, email, phone, created_at, updated_at FROM tr_rda")
+	rows, err := prodExistingUmrahDB.Query("SELECT id, name, email, phone, created_at, updated_at FROM tr_rda")
 	if err != nil {
 		log.Fatal("Error querying source database:", err)
 	}
@@ -87,7 +77,7 @@ func BDMService() {
 	}(rows)
 
 	// Prepare statement untuk mengecek duplikasi
-	checkStmt, err := targetDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
+	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
@@ -99,7 +89,7 @@ func BDMService() {
 	}(checkStmt)
 
 	// Prepare statement untuk insert dengan role slug
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
 		INSERT INTO "user" (
 			id, name, username, email, role,
 			is_active, email_verified,
@@ -127,7 +117,7 @@ func BDMService() {
 	)
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

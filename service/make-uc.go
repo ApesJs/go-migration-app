@@ -12,12 +12,12 @@ import (
 
 func MakeUCService() {
 	// Koneksi Database
-	_, targetDB := database.ConnectionDB()
-	defer targetDB.Close()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer devIdentityDB.Close()
 
 	// Menghitung total records yang perlu dibuatkan credentials
 	var totalRows int
-	err := targetDB.QueryRow(`
+	err := devIdentityDB.QueryRow(`
         SELECT COUNT(u.id)
         FROM "user" u
         LEFT JOIN user_credentials uc ON u.id = uc.id
@@ -51,7 +51,7 @@ func MakeUCService() {
 	)
 
 	// Prepare statement untuk insert
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
         INSERT INTO user_credentials (id, salt, hashed_password)
         VALUES ($1, $2, $3)
     `)
@@ -61,7 +61,7 @@ func MakeUCService() {
 	defer insertStmt.Close()
 
 	// Begin transaction
-	tx, err := targetDB.Begin()
+	tx, err := devIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
@@ -78,7 +78,7 @@ func MakeUCService() {
 	startTime := time.Now()
 
 	// Query untuk mendapatkan user yang belum memiliki credentials
-	rows, err := targetDB.Query(`
+	rows, err := devIdentityDB.Query(`
         SELECT u.id 
         FROM "user" u
         LEFT JOIN user_credentials uc ON u.id = uc.id

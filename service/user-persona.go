@@ -15,9 +15,10 @@ type DuplicatePhoneInfo struct {
 }
 
 func UserPersonaService() {
-	sourceDB, targetDB := database.ConnectionDB()
-	defer sourceDB.Close()
-	defer targetDB.Close()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer prodExistingUmrahDB.Close()
+	defer devIdentityDB.Close()
 
 	fmt.Println("Memulai proses transfer data persona user...")
 
@@ -28,14 +29,14 @@ func UserPersonaService() {
 	}
 
 	for _, query := range alterTableQueries {
-		_, err := targetDB.Exec(query)
+		_, err := devIdentityDB.Exec(query)
 		if err != nil {
 			log.Fatal("Error saat menambahkan kolom:", err)
 		}
 	}
 
 	var totalRows int
-	err := targetDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
+	err := devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error saat menghitung total rows:", err)
 	}
@@ -57,7 +58,7 @@ func UserPersonaService() {
 	)
 
 	// Query untuk mengecek nomor telepon yang sudah ada
-	checkPhoneStmt, err := targetDB.Prepare(`
+	checkPhoneStmt, err := devIdentityDB.Prepare(`
 		SELECT id FROM "user-persona" WHERE phone_number = $1 LIMIT 1
 	`)
 	if err != nil {
@@ -65,7 +66,7 @@ func UserPersonaService() {
 	}
 	defer checkPhoneStmt.Close()
 
-	checkStmt, err := targetDB.Prepare(`
+	checkStmt, err := devIdentityDB.Prepare(`
 		SELECT COUNT(*) FROM "user-persona" WHERE id = $1
 	`)
 	if err != nil {
@@ -73,7 +74,7 @@ func UserPersonaService() {
 	}
 	defer checkStmt.Close()
 
-	insertStmt, err := targetDB.Prepare(`
+	insertStmt, err := devIdentityDB.Prepare(`
 		INSERT INTO "user-persona" (
 			id, phone_number, address, gender,
 			job, born, dob
@@ -84,7 +85,7 @@ func UserPersonaService() {
 	}
 	defer insertStmt.Close()
 
-	updateStmt, err := targetDB.Prepare(`
+	updateStmt, err := devIdentityDB.Prepare(`
 		UPDATE "user-persona" SET
 			phone_number = $2,
 			address = $3,
@@ -113,7 +114,7 @@ func UserPersonaService() {
 	usedPhoneNumbers := make(map[string]string)
 
 	// Pertama, ambil semua nomor telepon yang sudah ada di database target
-	existingPhones, err := targetDB.Query(`
+	existingPhones, err := devIdentityDB.Query(`
 		SELECT id, phone_number FROM "user-persona" WHERE phone_number IS NOT NULL
 	`)
 	if err != nil {
@@ -130,7 +131,7 @@ func UserPersonaService() {
 	}
 	existingPhones.Close()
 
-	rows, err := targetDB.Query(`SELECT id FROM "user"`)
+	rows, err := devIdentityDB.Query(`SELECT id FROM "user"`)
 	if err != nil {
 		log.Fatal("Error querying user data:", err)
 	}
@@ -155,7 +156,7 @@ func UserPersonaService() {
 			dob     sql.NullTime
 		)
 
-		err = sourceDB.QueryRow(`
+		err = prodExistingUmrahDB.QueryRow(`
 			SELECT phone, address, gender, job, pob, dob
 			FROM td_user WHERE id = $1
 		`, userID).Scan(&phone, &address, &gender, &job, &pob, &dob)
