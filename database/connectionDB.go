@@ -43,3 +43,29 @@ func ConnectionDB() (*sql.DB, *sql.DB) {
 
 	return sourceDB, targetDB
 }
+
+func ConnectionIdentityDB() *sql.DB {
+	// Load konfigurasi dari file .env
+	config, err := configApp.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	// Koneksi ke database sumber dan target (kode koneksi tetap sama)
+	identityConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.IdentityDBHost, config.IdentityDBPort, config.IdentityDBUser, config.IdentityDBPassword, config.IdentityDBName)
+
+	identityDB, err := sql.Open("postgres", identityConnStr)
+	if err != nil {
+		log.Fatal("Error connecting to source database:", err)
+	}
+
+	// Test koneksi kedua database
+	if err := identityDB.Ping(); err != nil {
+		log.Fatal("Error connecting to source database:", err)
+	}
+
+	fmt.Println("Successfully connected to identity databases")
+
+	return identityDB
+}

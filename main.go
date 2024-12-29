@@ -11,5 +11,9 @@ func main() {
 	//service.BdmPersonaService()
 	//service.ChangeCityIDPersonaService()
 	//service.MakeUCService()
-	service.TravelService()
+	//service.TravelService()
+	//service.OrganizationInstanceService()
+	//service.OrganizationUserService()
+	//service.GenerateDummyData()
+	service.PackageService()
 }

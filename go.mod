@@ -3,6 +3,8 @@ module github.com/ApesJs/go-migration-app
 go 1.22
 
 require (
+	github.com/brianvoe/gofakeit/v6 v6.28.0 // indirect
+	github.com/google/uuid v1.6.0 // indirect
 	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mitchellh/colorstring v0.0.0-20190213212951-d06e56a500db // indirect
