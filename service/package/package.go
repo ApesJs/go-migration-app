@@ -5,123 +5,11 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/ApesJs/go-migration-app/database"
+	"github.com/ApesJs/go-migration-app/service/package/helper"
 	"github.com/schollz/progressbar/v3"
-	"io/ioutil"
 	"log"
-	"net/http"
 	"time"
 )
-
-// HotelJSON struktur untuk JSON hotel
-type HotelJSON struct {
-	ID         int       `json:"id"`
-	Logo       string    `json:"logo"`
-	Name       string    `json:"name"`
-	CityID     string    `json:"cityId"`
-	Rating     int       `json:"rating"`
-	Address    string    `json:"address"`
-	CityName   string    `json:"cityName"`
-	CreatedAt  time.Time `json:"createdAt"`
-	CreatedBy  string    `json:"createdBy"`
-	ModifiedAt time.Time `json:"modifiedAt"`
-	ModifiedBy *string   `json:"modifiedBy"`
-}
-
-// Struktur untuk JSON airline
-type AirportJSON struct {
-	ID          int       `json:"id"`
-	Code        string    `json:"code"`
-	Name        string    `json:"name"`
-	CityID      string    `json:"cityId"`
-	CityName    string    `json:"cityName"`
-	CountryID   string    `json:"countryId"`
-	CreatedAt   time.Time `json:"createdAt"`
-	CreatedBy   string    `json:"createdBy"`
-	ModifiedAt  time.Time `json:"modifiedAt"`
-	ModifiedBy  *string   `json:"modifiedBy"`
-	CountryName string    `json:"countryName"`
-}
-
-type AirlineJSON struct {
-	ID          int       `json:"id"`
-	Code        string    `json:"code"`
-	Logo        string    `json:"logo"`
-	Name        string    `json:"name"`
-	CountryID   string    `json:"countryId"`
-	CreatedAt   time.Time `json:"createdAt"`
-	CreatedBy   string    `json:"createdBy"`
-	ModifiedAt  time.Time `json:"modifiedAt"`
-	ModifiedBy  *string   `json:"modifiedBy"`
-	CountryName string    `json:"countryName"`
-}
-
-type AirportWrapperJSON struct {
-	Airport   AirportJSON `json:"airport"`
-	AirportID int         `json:"airportId"`
-}
-
-type FlightJSON struct {
-	To        AirportWrapperJSON `json:"to"`
-	From      AirportWrapperJSON `json:"from"`
-	Airline   AirlineJSON        `json:"airline"`
-	AirlineID int                `json:"airlineId"`
-}
-
-// Function helper untuk membuat airport JSON
-func createAirportJSON(id int, code, name, cityId, cityName, countryId string, createdAt, modifiedAt time.Time, createdBy string, modifiedBy *string, countryName string) AirportJSON {
-	return AirportJSON{
-		ID:          id,
-		Code:        code,
-		Name:        name,
-		CityID:      cityId,
-		CityName:    cityName,
-		CountryID:   countryId,
-		CreatedAt:   createdAt,
-		CreatedBy:   createdBy,
-		ModifiedAt:  modifiedAt,
-		ModifiedBy:  modifiedBy,
-		CountryName: countryName,
-	}
-}
-
-func getOrganizationInstance(organizationID string, organizationInstanceID int) ([]byte, error) {
-	// Buat HTTP client
-	client := &http.Client{}
-
-	// Buat URL dengan organization instance ID
-	url := fmt.Sprintf("https://dev.api.moslem101.com/identity/v1/organization-instance/%d", organizationInstanceID)
-
-	// Buat request
-	req, err := http.NewRequest("GET", url, nil)
-	if err != nil {
-		return nil, fmt.Errorf("error creating request: %v", err)
-	}
-
-	// Set headers
-	req.Header.Set("accept", "*/*")
-	req.Header.Set("x-organization-id", organizationID)
-	req.Header.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2Rldi5hcGkubW9zbGVtMTAxLmNvbSIsImlzcyI6IjEwMV9JZGVudGl0eV9Jc3N1ZXIiLCJpZCI6ImNkNTBjMjZhLTA4ODEtNDdkYS1hMjNmLTFiM2IyZGM3OGRiYyIsInJvbGUiOiJzdXBlcl9hZG1pbiIsInVzZXJuYW1lIjoiYXBlc2pzIiwiZW1haWwiOiJhc2VwamFlbnVkaW5zdXRhcmppQGdtYWlsLmNvbSIsImlhdCI6MTczNTUyMTY0NCwiZXhwIjoxNzM3MjU3MzMzfQ.9e6NDOFkMfbPTeLma9dXEI3cvoJiNZWHXXq5LkRzBDo")
-
-	// Kirim request
-	resp, err := client.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("error sending request: %v", err)
-	}
-	defer resp.Body.Close()
-
-	// Baca response body
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("error reading response: %v", err)
-	}
-
-	// Cek status code
-	if resp.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("error response status: %d, body: %s", resp.StatusCode, string(body))
-	}
-
-	return body, nil
-}
 
 func PackageService() {
 	// Koneksi Database
@@ -133,15 +21,7 @@ func PackageService() {
 	defer localUmrahDB.Close()
 
 	// Menghitung total records yang akan ditransfer
-	var totalRows int
-	err := prodExistingUmrahDB.QueryRow(`
-		SELECT COUNT(*) 
-		FROM td_package 
-		WHERE soft_delete = false 
-		AND departure_date < CURRENT_TIMESTAMP`).Scan(&totalRows)
-	if err != nil {
-		log.Fatal("Error counting rows:", err)
-	}
+	totalRows := helper.TotalRows(prodExistingUmrahDB)
 
 	fmt.Printf("Found %d total packages to transfer\n", totalRows)
 
@@ -246,17 +126,11 @@ func PackageService() {
 	}
 	defer rows.Close()
 
-	// Struct untuk menyimpan data travel yang tidak memiliki organization_instance
-	type MissingOrgInstance struct {
-		TravelID   string
-		TravelName string
-	}
-
 	// Variabel untuk statistik dan tracking
 	var (
 		transferredCount    int
 		errorCount          int
-		missingOrgInstances []MissingOrgInstance // Untuk menyimpan travel yang tidak memiliki organization_instance
+		missingOrgInstances []helper.MissingOrgInstance // Untuk menyimpan travel yang tidak memiliki organization_instance
 	)
 
 	// Begin transaction
@@ -333,7 +207,7 @@ func PackageService() {
 				}
 
 				// Tambahkan ke daftar travel yang bermasalah
-				missingOrgInstances = append(missingOrgInstances, MissingOrgInstance{
+				missingOrgInstances = append(missingOrgInstances, helper.MissingOrgInstance{
 					TravelID:   travelID,
 					TravelName: travelName,
 				})
@@ -349,7 +223,7 @@ func PackageService() {
 
 		var orgInstanceJSON []byte
 		if organizationInstanceID != 9999 {
-			apiResponse, err := getOrganizationInstance(travelID, organizationInstanceID)
+			apiResponse, err := helper.GetOrganizationInstance(travelID, organizationInstanceID)
 			if err != nil {
 				log.Printf("Error getting organization instance data: %v", err)
 				orgInstanceJSON = []byte(`{"status": "error fetching data"}`)
@@ -371,7 +245,7 @@ func PackageService() {
 		}
 
 		// Collect all hotels first
-		var medinaHotels, meccaHotels []*HotelJSON
+		var medinaHotels, meccaHotels []*helper.HotelJSON
 		for hotelRows.Next() {
 			var (
 				hotelID        string
@@ -395,7 +269,7 @@ func PackageService() {
 				continue
 			}
 
-			hotel := &HotelJSON{
+			hotel := &helper.HotelJSON{
 				ID:         1,
 				Logo:       hotelLogo,
 				Name:       hotelName,
@@ -418,7 +292,7 @@ func PackageService() {
 		hotelRows.Close()
 
 		// Use the first hotel from each city if available
-		var medinaHotel, meccaHotel *HotelJSON
+		var medinaHotel, meccaHotel *helper.HotelJSON
 		if len(medinaHotels) > 0 {
 			medinaHotel = medinaHotels[0]
 		}
@@ -471,9 +345,9 @@ func PackageService() {
 		}
 
 		// Create departure flight JSON
-		departureFlight := FlightJSON{
-			To: AirportWrapperJSON{
-				Airport: createAirportJSON(
+		departureFlight := helper.FlightJSON{
+			To: helper.AirportWrapperJSON{
+				Airport: helper.CreateAirportJSON(
 					6,                              // id
 					"JED",                          // code
 					"Internasional King Abdulaziz", // name
@@ -488,8 +362,8 @@ func PackageService() {
 				),
 				AirportID: 6,
 			},
-			From: AirportWrapperJSON{
-				Airport: createAirportJSON(
+			From: helper.AirportWrapperJSON{
+				Airport: helper.CreateAirportJSON(
 					3,                        // id
 					"SOE",                    // code
 					"Soekarno Hatta",         // name
@@ -504,7 +378,7 @@ func PackageService() {
 				),
 				AirportID: 3,
 			},
-			Airline: AirlineJSON{
+			Airline: helper.AirlineJSON{
 				ID:          1,
 				Code:        airlineCode,
 				Logo:        airlineLogo.String,
@@ -535,9 +409,9 @@ func PackageService() {
 		}
 
 		// Create arrival flight JSON
-		arrivalFlight := FlightJSON{
-			To: AirportWrapperJSON{
-				Airport: createAirportJSON(
+		arrivalFlight := helper.FlightJSON{
+			To: helper.AirportWrapperJSON{
+				Airport: helper.CreateAirportJSON(
 					3,                        // id
 					"SOE",                    // code
 					"Soekarno Hatta",         // name
@@ -552,8 +426,8 @@ func PackageService() {
 				),
 				AirportID: 3,
 			},
-			From: AirportWrapperJSON{
-				Airport: createAirportJSON(
+			From: helper.AirportWrapperJSON{
+				Airport: helper.CreateAirportJSON(
 					6,                              // id
 					"JED",                          // code
 					"Internasional King Abdulaziz", // name
@@ -568,7 +442,7 @@ func PackageService() {
 				),
 				AirportID: 6,
 			},
-			Airline: AirlineJSON{
+			Airline: helper.AirlineJSON{
 				ID:          1,
 				Code:        airlineCode,
 				Logo:        airlineLogo.String,
