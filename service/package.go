@@ -52,7 +52,7 @@ func PackageService() {
 		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetWidth(15),
-		progressbar.OptionSetDescription("[cyan][1/2][reset] Transferring packages..."),
+		progressbar.OptionSetDescription("[cyan][1/3][reset] Transferring packages..."),
 		progressbar.OptionSetTheme(progressbar.Theme{
 			Saucer:        "[green]=[reset]",
 			SaucerHead:    "[green]>[reset]",
@@ -64,7 +64,7 @@ func PackageService() {
 
 	// Statement untuk mengecek organization_instance_id
 	orgInstanceStmt, err := devIdentityDB.Prepare(`
-		SELECT id 
+		SELECT id, name 
 		FROM organization_instance 
 		WHERE organization_id = $1
 		LIMIT 1
@@ -202,12 +202,16 @@ func PackageService() {
 		}
 
 		// Get organization_instance_id
-		var organizationInstanceID int
-		err = orgInstanceStmt.QueryRow(travelID).Scan(&organizationInstanceID)
+		var (
+			organizationInstanceID   int
+			organizationInstanceName string
+		)
+		err = orgInstanceStmt.QueryRow(travelID).Scan(&organizationInstanceID, &organizationInstanceName)
 		if err != nil {
 			if err == sql.ErrNoRows {
 				// Jika tidak ditemukan, gunakan default value 9999
 				organizationInstanceID = 9999
+				organizationInstanceName = "Nama Travel Tidak di Temukan"
 
 				// Dapatkan nama travel
 				var travelName string
@@ -329,31 +333,31 @@ func PackageService() {
 		defaultAirlineJSON := []byte("{}")
 
 		_, err = txInsertStmt.Exec(
-			travelID,               // organization_id
-			organizationInstanceID, // organization_instance_id
-			finalPackageType,       // package_type
-			image.String,           // thumbnail
-			name,                   // title
-			shareDesc.String,       // description
-			termCondition.String,   // terms_condition
-			facility.String,        // facility
-			currency,               // currency
-			medinaHotelJSON,        // medina_hotel
-			meccaHotelJSON,         // mecca_hotel
-			defaultAirlineJSON,     // departure
-			defaultAirlineJSON,     // arrival
-			dpType,                 // dp_type
-			int(dpAmount),          // dp_amount
-			feeType,                // fee_type
-			int(feeAmount),         // fee_amount
-			softDelete,             // deleted
-			createdAt,              // created_at
-			updatedAt,              // modified_at
-			"migration",            // created_by
-			nil,                    // modified_by
-			"test",                 // organization_instance_name
-			orgInstanceJSON,        // organization_instance
-			slug.String,            // slug
+			travelID,                 // organization_id
+			organizationInstanceID,   // organization_instance_id
+			finalPackageType,         // package_type
+			image.String,             // thumbnail
+			name,                     // title
+			shareDesc.String,         // description
+			termCondition.String,     // terms_condition
+			facility.String,          // facility
+			currency,                 // currency
+			medinaHotelJSON,          // medina_hotel
+			meccaHotelJSON,           // mecca_hotel
+			defaultAirlineJSON,       // departure
+			defaultAirlineJSON,       // arrival
+			dpType,                   // dp_type
+			int(dpAmount),            // dp_amount
+			feeType,                  // fee_type
+			int(feeAmount),           // fee_amount
+			softDelete,               // deleted
+			createdAt,                // created_at
+			updatedAt,                // modified_at
+			"migration",              // created_by
+			nil,                      // modified_by
+			organizationInstanceName, // organization_instance_name
+			orgInstanceJSON,          // organization_instance
+			slug.String,              // slug
 		)
 		if err != nil {
 			log.Printf("Error inserting row: %v", err)
@@ -374,11 +378,49 @@ func PackageService() {
 		return
 	}
 
+	// Update progress bar untuk standardisasi nama kota
+	bar.Finish()
+	fmt.Printf("\n[2/3] Standardizing city names...\n")
+
+	// Standardisasi nama kota Mekah/Mekkah
+	updateMeccaResult, err := localUmrahDB.Exec(`
+		UPDATE package
+		SET mecca_hotel = jsonb_set(
+			mecca_hotel,
+			'{cityName}',
+			'"MAKKAH"'
+		)
+		WHERE mecca_hotel->>'cityName' = 'Mekkah'
+		OR mecca_hotel->>'cityName' = 'Mekah'
+	`)
+	if err != nil {
+		log.Printf("Error updating Mecca city names: %v", err)
+	}
+
+	// Standardisasi nama kota Madinah
+	updateMadinahResult, err := localUmrahDB.Exec(`
+		UPDATE package
+		SET medina_hotel = jsonb_set(
+			medina_hotel,
+			'{cityName}',
+			'"MADINAH"'
+		)
+		WHERE medina_hotel->>'cityName' = 'Madinah'
+	`)
+	if err != nil {
+		log.Printf("Error updating Madinah city names: %v", err)
+	}
+
+	// Get number of rows affected
+	meccaRowsAffected, _ := updateMeccaResult.RowsAffected()
+	madinahRowsAffected, _ := updateMadinahResult.RowsAffected()
+
+	fmt.Printf("\n[3/3] City name standardization completed!\n")
+	fmt.Printf("Standardized %d Mecca hotel records\n", meccaRowsAffected)
+	fmt.Printf("Standardized %d Madinah hotel records\n", madinahRowsAffected)
+
 	duration := time.Since(startTime)
 
-	// Update progress bar description for completion
-	bar.Finish()
-	fmt.Printf("\n[2/2] Transfer completed!\n")
 	fmt.Printf("\nTransfer Summary:\n")
 	fmt.Printf("----------------\n")
 	fmt.Printf("Total records: %d\n", totalRows)
