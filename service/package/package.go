@@ -44,103 +44,49 @@ func PackageService() {
 	)
 
 	// Statement untuk mengecek organization_instance_id
-	orgInstanceStmt, err := devIdentityDB.Prepare(`
-		SELECT id, name 
-		FROM organization_instance 
-		WHERE organization_id = $1
-		LIMIT 1
-	`)
+	orgInstanceStmt, err := helper.OrgInsStmt(devIdentityDB)
 	if err != nil {
 		log.Fatal("Error preparing organization instance statement:", err)
 	}
 	defer orgInstanceStmt.Close()
 
 	// Statement untuk mendapatkan nama travel
-	travelStmt, err := prodExistingUmrahDB.Prepare(`
-		SELECT name 
-		FROM td_travel 
-		WHERE id = $1
-	`)
+	travelStmt, err := helper.TravelStmt(prodExistingUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing travel statement:", err)
 	}
 	defer travelStmt.Close()
 
 	// Statement untuk mengecek hotel data
-	hotelStmt, err := prodExistingUmrahDB.Prepare(`
-		SELECT h.id, h.name, h.address, h.rate, h.logo, h.created_at, h.updated_at,
-			   c.id as city_id, c.name as city_name
-		FROM td_package_hotel ph
-		JOIN td_hotel h ON ph.hotel_id = h.id
-		JOIN td_city c ON h.city_id = c.id
-		WHERE ph.package_id = $1
-	`)
+	hotelStmt, err := helper.HotelStmt(prodExistingUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing hotel check statement:", err)
 	}
 	defer hotelStmt.Close()
 
 	// Statement untuk mengambil data airline
-	airlineStmt, err := prodExistingUmrahDB.Prepare(`
-        SELECT code, logo, name, created_at, updated_at
-        FROM td_airline 
-        WHERE id = $1
-    `)
+	airlineStmt, err := helper.AirlineStmt(prodExistingUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing airline statement:", err)
 	}
 	defer airlineStmt.Close()
 
 	// Statement untuk insert ke tabel package
-	insertPackageStmt, err := localUmrahDB.Prepare(`
-		INSERT INTO package (
-			organization_id, organization_instance_id, package_type,
-			thumbnail, title, description, terms_condition,
-			facility, currency, medina_hotel, mecca_hotel,
-			departure, arrival, dp_type, dp_amount,
-			fee_type, fee_amount, deleted, created_at,
-			modified_at, created_by, modified_by,
-			organization_instance_name, organization_instance,
-			slug
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
-			$11, $12, $13, $14, $15, $16, $17, $18,
-			$19, $20, $21, $22, $23, $24, $25
-		) RETURNING id
-	`)
+	insertPackageStmt, err := helper.InsertPackageStmt(localUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing package insert statement:", err)
 	}
 	defer insertPackageStmt.Close()
 
 	// Statement untuk insert ke tabel package_variant
-	insertVariantStmt, err := localUmrahDB.Prepare(`
-		INSERT INTO package_variant (
-			package_id, thumbnail, name, departure_date, arrival_date,
-			original_price_double, original_price_triple, original_price_quad,
-			price_double, price_triple, price_quad,
-			released_at, published, created_at, modified_at, created_by
-		) VALUES (
-			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
-		)
-	`)
+	insertVariantStmt, err := helper.InsertVariantStmt(localUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing variant insert statement:", err)
 	}
 	defer insertVariantStmt.Close()
 
 	// Query untuk mengambil data package
-	rows, err := prodExistingUmrahDB.Query(`
-		SELECT id, travel_id, departure_airline_id, arrival_airline_id,
-			   name, slug, image, type, share_desc, term_condition,
-			   facility, currency, dp_type, dp_amount, fee_type,
-			   fee_amount, soft_delete, created_at, updated_at,
-			   departure_date, arrival_date, price_double, price_triple,
-			   price_quad
-		FROM td_package 
-		WHERE soft_delete = false 
-		AND departure_date < CURRENT_TIMESTAMP
-	`)
+	rows, err := helper.GetDataPackage(prodExistingUmrahDB)
 	if err != nil {
 		log.Fatal("Error querying source database:", err)
 	}
