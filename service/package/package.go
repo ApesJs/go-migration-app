@@ -62,9 +62,9 @@ func PackageService() {
 		WHERE id = $1
 	`)
 	if err != nil {
-		log.Fatal("Error preparing organization instance statement:", err)
+		log.Fatal("Error preparing travel statement:", err)
 	}
-	defer orgInstanceStmt.Close()
+	defer travelStmt.Close()
 
 	// Statement untuk mengecek hotel data
 	hotelStmt, err := prodExistingUmrahDB.Prepare(`
@@ -92,7 +92,7 @@ func PackageService() {
 	defer airlineStmt.Close()
 
 	// Statement untuk insert ke tabel package
-	insertStmt, err := localUmrahDB.Prepare(`
+	insertPackageStmt, err := localUmrahDB.Prepare(`
 		INSERT INTO package (
 			organization_id, organization_instance_id, package_type,
 			thumbnail, title, description, terms_condition,
@@ -106,12 +106,28 @@ func PackageService() {
 			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10,
 			$11, $12, $13, $14, $15, $16, $17, $18,
 			$19, $20, $21, $22, $23, $24, $25
+		) RETURNING id
+	`)
+	if err != nil {
+		log.Fatal("Error preparing package insert statement:", err)
+	}
+	defer insertPackageStmt.Close()
+
+	// Statement untuk insert ke tabel package_variant
+	insertVariantStmt, err := localUmrahDB.Prepare(`
+		INSERT INTO package_variant (
+			package_id, thumbnail, name, departure_date, arrival_date,
+			original_price_double, original_price_triple, original_price_quad,
+			price_double, price_triple, price_quad,
+			released_at, published, created_at, modified_at, created_by
+		) VALUES (
+			$1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16
 		)
 	`)
 	if err != nil {
-		log.Fatal("Error preparing insert statement:", err)
+		log.Fatal("Error preparing variant insert statement:", err)
 	}
-	defer insertStmt.Close()
+	defer insertVariantStmt.Close()
 
 	// Query untuk mengambil data package
 	rows, err := prodExistingUmrahDB.Query(`
@@ -119,7 +135,8 @@ func PackageService() {
 			   name, slug, image, type, share_desc, term_condition,
 			   facility, currency, dp_type, dp_amount, fee_type,
 			   fee_amount, soft_delete, created_at, updated_at,
-			   departure_date
+			   departure_date, arrival_date, price_double, price_triple,
+			   price_quad
 		FROM td_package 
 		WHERE soft_delete = false 
 		AND departure_date < CURRENT_TIMESTAMP
@@ -133,7 +150,8 @@ func PackageService() {
 	var (
 		transferredCount    int
 		errorCount          int
-		missingOrgInstances []helper.MissingOrgInstance // Untuk menyimpan travel yang tidak memiliki organization_instance
+		variantCount        int
+		missingOrgInstances []helper.MissingOrgInstance
 	)
 
 	// Begin transaction
@@ -143,7 +161,8 @@ func PackageService() {
 	}
 
 	// Prepare statements dalam transaksi
-	txInsertStmt := tx.Stmt(insertStmt)
+	txInsertPackageStmt := tx.Stmt(insertPackageStmt)
+	txInsertVariantStmt := tx.Stmt(insertVariantStmt)
 
 	startTime := time.Now()
 
@@ -170,6 +189,10 @@ func PackageService() {
 			createdAt          time.Time
 			updatedAt          time.Time
 			departureDate      time.Time
+			arrivalDate        time.Time
+			priceDouble        float64
+			priceTriple        float64
+			priceQuad          float64
 		)
 
 		// Scan data dari source database
@@ -178,7 +201,8 @@ func PackageService() {
 			&name, &slug, &image, &packageType, &shareDesc, &termCondition,
 			&facility, &currency, &dpType, &dpAmount, &feeType,
 			&feeAmount, &softDelete, &createdAt, &updatedAt,
-			&departureDate,
+			&departureDate, &arrivalDate, &priceDouble, &priceTriple,
+			&priceQuad,
 		)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)
@@ -195,11 +219,9 @@ func PackageService() {
 		err = orgInstanceStmt.QueryRow(travelID).Scan(&organizationInstanceID, &organizationInstanceName)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				// Jika tidak ditemukan, gunakan default value
 				organizationInstanceID = 9999
 				organizationInstanceName = "Nama Travel Tidak di Temukan"
 
-				// Dapatkan nama travel
 				var travelName string
 				err := travelStmt.QueryRow(travelID).Scan(&travelName)
 				if err != nil {
@@ -209,14 +231,12 @@ func PackageService() {
 					}
 				}
 
-				// Tambahkan ke daftar travel yang bermasalah
 				missingOrgInstances = append(missingOrgInstances, helper.MissingOrgInstance{
 					TravelID:   travelID,
 					TravelName: travelName,
 				})
 				log.Printf("No organization_instance found for travel_id %s (%s), using default value 9999", travelID, travelName)
 			} else {
-				// Jika error lain selain no rows
 				log.Printf("Error querying organization_instance_id for travel_id %s: %v", travelID, err)
 				errorCount++
 				bar.Add(1)
@@ -234,11 +254,10 @@ func PackageService() {
 				orgInstanceJSON = apiResponse
 			}
 		} else {
-			// Gunakan default JSON jika tidak ada organization instance
 			orgInstanceJSON = []byte(`{"status": "belum ada"}`)
 		}
 
-		// Get hotel data
+		// Process hotel data
 		hotelRows, err := hotelStmt.Query(id)
 		if err != nil {
 			log.Printf("Error querying hotel data: %v", err)
@@ -247,7 +266,6 @@ func PackageService() {
 			continue
 		}
 
-		// Collect all hotels first
 		var medinaHotels, meccaHotels []*helper.HotelJSON
 		for hotelRows.Next() {
 			var (
@@ -294,7 +312,6 @@ func PackageService() {
 		}
 		hotelRows.Close()
 
-		// Use the first hotel from each city if available
 		var medinaHotel, meccaHotel *helper.HotelJSON
 		if len(medinaHotels) > 0 {
 			medinaHotel = medinaHotels[0]
@@ -303,7 +320,6 @@ func PackageService() {
 			meccaHotel = meccaHotels[0]
 		}
 
-		// Convert hotels to JSON
 		medinaHotelJSON, err := json.Marshal(medinaHotel)
 		if err != nil {
 			log.Printf("Error marshaling medina hotel: %v", err)
@@ -320,7 +336,7 @@ func PackageService() {
 			continue
 		}
 
-		// Get airline data for departure
+		// Get airline data
 		var (
 			airlineCode      string
 			airlineLogo      sql.NullString
@@ -343,18 +359,17 @@ func PackageService() {
 			continue
 		}
 
-		// Create departure flight JSON
+		// Create flight JSONs
 		departureFlight, err := helper.CreateDepartureJSON(airlineCode, airlineLogo, airlineName, airlineCreatedAt, airlineUpdatedAt, airlineStmt, arrivalAirlineID)
 		if err != nil && err != sql.ErrNoRows {
-			log.Printf("Error getting airline data: %v", err)
+			log.Printf("Error creating departure flight: %v", err)
 			errorCount++
 			bar.Add(1)
 			continue
 		}
-		// Create arrival flight JSON
+
 		arrivalFlight := helper.CreateArrivalJSON(airlineCode, airlineLogo, airlineName, airlineCreatedAt, airlineUpdatedAt)
 
-		// Convert to JSON
 		departureJSON, err := json.Marshal(departureFlight)
 		if err != nil {
 			log.Printf("Error marshaling departure flight: %v", err)
@@ -377,7 +392,9 @@ func PackageService() {
 			finalPackageType = "hajj"
 		}
 
-		_, err = txInsertStmt.Exec(
+		// Insert package and get ID
+		var packageID int
+		err = txInsertPackageStmt.QueryRow(
 			travelID,                 // organization_id
 			organizationInstanceID,   // organization_instance_id
 			finalPackageType,         // package_type
@@ -403,15 +420,44 @@ func PackageService() {
 			organizationInstanceName, // organization_instance_name
 			orgInstanceJSON,          // organization_instance
 			slug.String,              // slug
-		)
+		).Scan(&packageID)
+
 		if err != nil {
-			log.Printf("Error inserting row: %v", err)
+			log.Printf("Error inserting package: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		// Insert package_variant
+		_, err = txInsertVariantStmt.Exec(
+			packageID,                          // package_id
+			image.String,                       // thumbnail
+			name,                               // name
+			departureDate.Format("2006-01-02"), // departure_date
+			arrivalDate.Format("2006-01-02"),   // arrival_date
+			int64(priceDouble),                 // original_price_double
+			int64(priceTriple),                 // original_price_triple
+			int64(priceQuad),                   // original_price_quad
+			int64(priceDouble),                 // price_double
+			int64(priceTriple),                 // price_triple
+			int64(priceQuad),                   // price_quad
+			updatedAt,                          // released_at
+			true,                               // published
+			createdAt,                          // created_at
+			updatedAt,                          // modified_at
+			"migration",                        // created_by
+		)
+
+		if err != nil {
+			log.Printf("Error inserting package variant: %v", err)
 			errorCount++
 			bar.Add(1)
 			continue
 		}
 
 		transferredCount++
+		variantCount++
 		bar.Add(1)
 	}
 
@@ -469,7 +515,8 @@ func PackageService() {
 	fmt.Printf("\nTransfer Summary:\n")
 	fmt.Printf("----------------\n")
 	fmt.Printf("Total records: %d\n", totalRows)
-	fmt.Printf("Successfully transferred: %d\n", transferredCount)
+	fmt.Printf("Successfully transferred packages: %d\n", transferredCount)
+	fmt.Printf("Successfully transferred variants: %d\n", variantCount)
 	fmt.Printf("Failed transfers: %d\n", errorCount)
 	fmt.Printf("Duration: %s\n", duration.Round(time.Second))
 	fmt.Printf("Average speed: %.2f records/second\n", float64(transferredCount)/duration.Seconds())
