@@ -21,7 +21,10 @@ func PackageService() {
 	defer localUmrahDB.Close()
 
 	// Menghitung total records yang akan ditransfer
-	totalRows := helper.TotalRows(prodExistingUmrahDB)
+	totalRows, err := helper.TotalRows(prodExistingUmrahDB)
+	if err != nil {
+		log.Fatal("Error counting rows:", err)
+	}
 
 	fmt.Printf("Found %d total packages to transfer\n", totalRows)
 
@@ -187,12 +190,12 @@ func PackageService() {
 		// Get organization_instance_id
 		var (
 			organizationInstanceID   int
-			organizationInstanceName string = "Nama Travel Tidak di Temukan"
+			organizationInstanceName string
 		)
 		err = orgInstanceStmt.QueryRow(travelID).Scan(&organizationInstanceID, &organizationInstanceName)
 		if err != nil {
 			if err == sql.ErrNoRows {
-				// Jika tidak ditemukan, gunakan default value 9999
+				// Jika tidak ditemukan, gunakan default value
 				organizationInstanceID = 9999
 				organizationInstanceName = "Nama Travel Tidak di Temukan"
 
@@ -317,10 +320,6 @@ func PackageService() {
 			continue
 		}
 
-		// Create departure JSON
-		departureCreatedBy := "643aaa6d-7caa-4c3c-99b5-d062447c3d3a"
-		//var departureModifiedBy *string = nil
-
 		// Get airline data for departure
 		var (
 			airlineCode      string
@@ -345,117 +344,15 @@ func PackageService() {
 		}
 
 		// Create departure flight JSON
-		departureFlight := helper.FlightJSON{
-			To: helper.AirportWrapperJSON{
-				Airport: helper.CreateAirportJSON(
-					6,                              // id
-					"JED",                          // code
-					"Internasional King Abdulaziz", // name
-					"0213",                         // cityId
-					"JEDDAH",                       // cityName
-					"682",                          // countryId
-					time.Date(2024, 12, 28, 16, 35, 56, 423000000, time.UTC), // createdAt
-					time.Date(2024, 12, 28, 16, 35, 56, 475415000, time.UTC), // modifiedAt
-					departureCreatedBy, // createdBy
-					nil,                // modifiedBy
-					"JEDDAH",           // countryName
-				),
-				AirportID: 6,
-			},
-			From: helper.AirportWrapperJSON{
-				Airport: helper.CreateAirportJSON(
-					3,                        // id
-					"SOE",                    // code
-					"Soekarno Hatta",         // name
-					"3674",                   // cityId
-					"KOTA TANGERANG SELATAN", // cityName
-					"360",                    // countryId
-					time.Date(2024, 10, 31, 9, 10, 3, 359000000, time.UTC), // createdAt
-					time.Date(2024, 11, 2, 16, 8, 7, 18000000, time.UTC),   // modifiedAt
-					departureCreatedBy,  // createdBy
-					&departureCreatedBy, // modifiedBy
-					"INDONESIA",         // countryName
-				),
-				AirportID: 3,
-			},
-			Airline: helper.AirlineJSON{
-				ID:          1,
-				Code:        airlineCode,
-				Logo:        airlineLogo.String,
-				Name:        airlineName,
-				CountryID:   "Tidak Ditemukan",
-				CreatedAt:   airlineCreatedAt,
-				CreatedBy:   "migration",
-				ModifiedAt:  airlineUpdatedAt,
-				ModifiedBy:  nil,
-				CountryName: "Tidak Ditemukan",
-			},
-			AirlineID: 1,
-		}
-
-		// Get airline data for arrival
-		err = airlineStmt.QueryRow(arrivalAirlineID).Scan(
-			&airlineCode,
-			&airlineLogo,
-			&airlineName,
-			&airlineCreatedAt,
-			&airlineUpdatedAt,
-		)
+		departureFlight, err := helper.CreateDepartureJSON(airlineCode, airlineLogo, airlineName, airlineCreatedAt, airlineUpdatedAt, airlineStmt, arrivalAirlineID)
 		if err != nil && err != sql.ErrNoRows {
 			log.Printf("Error getting airline data: %v", err)
 			errorCount++
 			bar.Add(1)
 			continue
 		}
-
 		// Create arrival flight JSON
-		arrivalFlight := helper.FlightJSON{
-			To: helper.AirportWrapperJSON{
-				Airport: helper.CreateAirportJSON(
-					3,                        // id
-					"SOE",                    // code
-					"Soekarno Hatta",         // name
-					"3674",                   // cityId
-					"KOTA TANGERANG SELATAN", // cityName
-					"360",                    // countryId
-					time.Date(2024, 10, 31, 9, 10, 3, 359000000, time.UTC), // createdAt
-					time.Date(2024, 11, 2, 16, 8, 7, 18000000, time.UTC),   // modifiedAt
-					departureCreatedBy,  // createdBy
-					&departureCreatedBy, // modifiedBy
-					"INDONESIA",         // countryName
-				),
-				AirportID: 3,
-			},
-			From: helper.AirportWrapperJSON{
-				Airport: helper.CreateAirportJSON(
-					6,                              // id
-					"JED",                          // code
-					"Internasional King Abdulaziz", // name
-					"0213",                         // cityId
-					"JEDDAH",                       // cityName
-					"682",                          // countryId
-					time.Date(2024, 12, 28, 16, 35, 56, 423000000, time.UTC), // createdAt
-					time.Date(2024, 12, 28, 16, 35, 56, 475415000, time.UTC), // modifiedAt
-					departureCreatedBy, // createdBy
-					nil,                // modifiedBy
-					"JEDDAH",           // countryName
-				),
-				AirportID: 6,
-			},
-			Airline: helper.AirlineJSON{
-				ID:          1,
-				Code:        airlineCode,
-				Logo:        airlineLogo.String,
-				Name:        airlineName,
-				CountryID:   "Tidak Ditemukan",
-				CreatedAt:   airlineCreatedAt,
-				CreatedBy:   "migration",
-				ModifiedAt:  airlineUpdatedAt,
-				ModifiedBy:  nil,
-				CountryName: "Tidak Ditemukan",
-			},
-			AirlineID: 1,
-		}
+		arrivalFlight := helper.CreateArrivalJSON(airlineCode, airlineLogo, airlineName, airlineCreatedAt, airlineUpdatedAt)
 
 		// Convert to JSON
 		departureJSON, err := json.Marshal(departureFlight)

@@ -1,6 +1,9 @@
 package helper
 
-import "time"
+import (
+	"database/sql"
+	"time"
+)
 
 // HotelJSON struktur untuk JSON hotel
 type HotelJSON struct {
@@ -78,4 +81,119 @@ func CreateAirportJSON(id int, code, name, cityId, cityName, countryId string, c
 		ModifiedBy:  modifiedBy,
 		CountryName: countryName,
 	}
+}
+
+var departureCreatedBy = "643aaa6d-7caa-4c3c-99b5-d062447c3d3a"
+
+func CreateDepartureJSON(airlineCode string, airlineLogo sql.NullString, airlineName string, airlineCreatedAt time.Time, airlineUpdatedAt time.Time, airlineStmt *sql.Stmt, arrivalAirlineID string) (FlightJSON, error) {
+	departureFlight := FlightJSON{
+		To: AirportWrapperJSON{
+			Airport: CreateAirportJSON(
+				6,                              // id
+				"JED",                          // code
+				"Internasional King Abdulaziz", // name
+				"0213",                         // cityId
+				"JEDDAH",                       // cityName
+				"682",                          // countryId
+				time.Date(2024, 12, 28, 16, 35, 56, 423000000, time.UTC), // createdAt
+				time.Date(2024, 12, 28, 16, 35, 56, 475415000, time.UTC), // modifiedAt
+				departureCreatedBy, // createdBy
+				nil,                // modifiedBy
+				"JEDDAH",           // countryName
+			),
+			AirportID: 6,
+		},
+		From: AirportWrapperJSON{
+			Airport: CreateAirportJSON(
+				3,                        // id
+				"SOE",                    // code
+				"Soekarno Hatta",         // name
+				"3674",                   // cityId
+				"KOTA TANGERANG SELATAN", // cityName
+				"360",                    // countryId
+				time.Date(2024, 10, 31, 9, 10, 3, 359000000, time.UTC), // createdAt
+				time.Date(2024, 11, 2, 16, 8, 7, 18000000, time.UTC),   // modifiedAt
+				departureCreatedBy,  // createdBy
+				&departureCreatedBy, // modifiedBy
+				"INDONESIA",         // countryName
+			),
+			AirportID: 3,
+		},
+		Airline: AirlineJSON{
+			ID:          1,
+			Code:        airlineCode,
+			Logo:        airlineLogo.String,
+			Name:        airlineName,
+			CountryID:   "Tidak Ditemukan",
+			CreatedAt:   airlineCreatedAt,
+			CreatedBy:   "migration",
+			ModifiedAt:  airlineUpdatedAt,
+			ModifiedBy:  nil,
+			CountryName: "Tidak Ditemukan",
+		},
+		AirlineID: 1,
+	}
+
+	// Get airline data for arrival
+	err := airlineStmt.QueryRow(arrivalAirlineID).Scan(
+		&airlineCode,
+		&airlineLogo,
+		&airlineName,
+		&airlineCreatedAt,
+		&airlineUpdatedAt,
+	)
+
+	return departureFlight, err
+}
+
+func CreateArrivalJSON(airlineCode string, airlineLogo sql.NullString, airlineName string, airlineCreatedAt time.Time, airlineUpdatedAt time.Time) FlightJSON {
+	arrivalFlight := FlightJSON{
+		To: AirportWrapperJSON{
+			Airport: CreateAirportJSON(
+				3,                        // id
+				"SOE",                    // code
+				"Soekarno Hatta",         // name
+				"3674",                   // cityId
+				"KOTA TANGERANG SELATAN", // cityName
+				"360",                    // countryId
+				time.Date(2024, 10, 31, 9, 10, 3, 359000000, time.UTC), // createdAt
+				time.Date(2024, 11, 2, 16, 8, 7, 18000000, time.UTC),   // modifiedAt
+				departureCreatedBy,  // createdBy
+				&departureCreatedBy, // modifiedBy
+				"INDONESIA",         // countryName
+			),
+			AirportID: 3,
+		},
+		From: AirportWrapperJSON{
+			Airport: CreateAirportJSON(
+				6,                              // id
+				"JED",                          // code
+				"Internasional King Abdulaziz", // name
+				"0213",                         // cityId
+				"JEDDAH",                       // cityName
+				"682",                          // countryId
+				time.Date(2024, 12, 28, 16, 35, 56, 423000000, time.UTC), // createdAt
+				time.Date(2024, 12, 28, 16, 35, 56, 475415000, time.UTC), // modifiedAt
+				departureCreatedBy, // createdBy
+				nil,                // modifiedBy
+				"JEDDAH",           // countryName
+			),
+			AirportID: 6,
+		},
+		Airline: AirlineJSON{
+			ID:          1,
+			Code:        airlineCode,
+			Logo:        airlineLogo.String,
+			Name:        airlineName,
+			CountryID:   "Tidak Ditemukan",
+			CreatedAt:   airlineCreatedAt,
+			CreatedBy:   "migration",
+			ModifiedAt:  airlineUpdatedAt,
+			ModifiedBy:  nil,
+			CountryName: "Tidak Ditemukan",
+		},
+		AirlineID: 1,
+	}
+
+	return arrivalFlight
 }
