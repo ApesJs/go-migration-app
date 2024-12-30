@@ -25,6 +25,63 @@ type HotelJSON struct {
 	ModifiedBy *string   `json:"modifiedBy"`
 }
 
+// Struktur untuk JSON airline
+type AirportJSON struct {
+	ID          int       `json:"id"`
+	Code        string    `json:"code"`
+	Name        string    `json:"name"`
+	CityID      string    `json:"cityId"`
+	CityName    string    `json:"cityName"`
+	CountryID   string    `json:"countryId"`
+	CreatedAt   time.Time `json:"createdAt"`
+	CreatedBy   string    `json:"createdBy"`
+	ModifiedAt  time.Time `json:"modifiedAt"`
+	ModifiedBy  *string   `json:"modifiedBy"`
+	CountryName string    `json:"countryName"`
+}
+
+type AirlineJSON struct {
+	ID          int       `json:"id"`
+	Code        string    `json:"code"`
+	Logo        string    `json:"logo"`
+	Name        string    `json:"name"`
+	CountryID   string    `json:"countryId"`
+	CreatedAt   time.Time `json:"createdAt"`
+	CreatedBy   string    `json:"createdBy"`
+	ModifiedAt  time.Time `json:"modifiedAt"`
+	ModifiedBy  *string   `json:"modifiedBy"`
+	CountryName string    `json:"countryName"`
+}
+
+type AirportWrapperJSON struct {
+	Airport   AirportJSON `json:"airport"`
+	AirportID int         `json:"airportId"`
+}
+
+type FlightJSON struct {
+	To        AirportWrapperJSON `json:"to"`
+	From      AirportWrapperJSON `json:"from"`
+	Airline   AirlineJSON        `json:"airline"`
+	AirlineID int                `json:"airlineId"`
+}
+
+// Function helper untuk membuat airport JSON
+func createAirportJSON(id int, code, name, cityId, cityName, countryId string, createdAt, modifiedAt time.Time, createdBy string, modifiedBy *string, countryName string) AirportJSON {
+	return AirportJSON{
+		ID:          id,
+		Code:        code,
+		Name:        name,
+		CityID:      cityId,
+		CityName:    cityName,
+		CountryID:   countryId,
+		CreatedAt:   createdAt,
+		CreatedBy:   createdBy,
+		ModifiedAt:  modifiedAt,
+		ModifiedBy:  modifiedBy,
+		CountryName: countryName,
+	}
+}
+
 func PackageService() {
 	// Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
@@ -98,6 +155,17 @@ func PackageService() {
 		log.Fatal("Error preparing hotel check statement:", err)
 	}
 	defer hotelStmt.Close()
+
+	// Statement untuk mengambil data airline
+	airlineStmt, err := prodExistingUmrahDB.Prepare(`
+        SELECT code, logo, name, created_at, updated_at
+        FROM td_airline 
+        WHERE id = $1
+    `)
+	if err != nil {
+		log.Fatal("Error preparing airline statement:", err)
+	}
+	defer airlineStmt.Close()
 
 	// Statement untuk insert ke tabel package
 	insertStmt, err := localUmrahDB.Prepare(`
@@ -204,7 +272,7 @@ func PackageService() {
 		// Get organization_instance_id
 		var (
 			organizationInstanceID   int
-			organizationInstanceName string
+			organizationInstanceName string = "Nama Travel Tidak di Temukan"
 		)
 		err = orgInstanceStmt.QueryRow(travelID).Scan(&organizationInstanceID, &organizationInstanceName)
 		if err != nil {
@@ -320,6 +388,163 @@ func PackageService() {
 			continue
 		}
 
+		// Create departure JSON
+		departureCreatedBy := "643aaa6d-7caa-4c3c-99b5-d062447c3d3a"
+		//var departureModifiedBy *string = nil
+
+		// Get airline data for departure
+		var (
+			airlineCode      string
+			airlineLogo      sql.NullString
+			airlineName      string
+			airlineCreatedAt time.Time
+			airlineUpdatedAt time.Time
+		)
+
+		err = airlineStmt.QueryRow(departureAirlineID).Scan(
+			&airlineCode,
+			&airlineLogo,
+			&airlineName,
+			&airlineCreatedAt,
+			&airlineUpdatedAt,
+		)
+		if err != nil && err != sql.ErrNoRows {
+			log.Printf("Error getting airline data: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		// Create departure flight JSON
+		departureFlight := FlightJSON{
+			To: AirportWrapperJSON{
+				Airport: createAirportJSON(
+					6,                              // id
+					"JED",                          // code
+					"Internasional King Abdulaziz", // name
+					"0213",                         // cityId
+					"JEDDAH",                       // cityName
+					"682",                          // countryId
+					time.Date(2024, 12, 28, 16, 35, 56, 423000000, time.UTC), // createdAt
+					time.Date(2024, 12, 28, 16, 35, 56, 475415000, time.UTC), // modifiedAt
+					departureCreatedBy, // createdBy
+					nil,                // modifiedBy
+					"JEDDAH",           // countryName
+				),
+				AirportID: 6,
+			},
+			From: AirportWrapperJSON{
+				Airport: createAirportJSON(
+					3,                        // id
+					"SOE",                    // code
+					"Soekarno Hatta",         // name
+					"3674",                   // cityId
+					"KOTA TANGERANG SELATAN", // cityName
+					"360",                    // countryId
+					time.Date(2024, 10, 31, 9, 10, 3, 359000000, time.UTC), // createdAt
+					time.Date(2024, 11, 2, 16, 8, 7, 18000000, time.UTC),   // modifiedAt
+					departureCreatedBy,  // createdBy
+					&departureCreatedBy, // modifiedBy
+					"INDONESIA",         // countryName
+				),
+				AirportID: 3,
+			},
+			Airline: AirlineJSON{
+				ID:          1,
+				Code:        airlineCode,
+				Logo:        airlineLogo.String,
+				Name:        airlineName,
+				CountryID:   "Tidak Ditemukan",
+				CreatedAt:   airlineCreatedAt,
+				CreatedBy:   "migration",
+				ModifiedAt:  airlineUpdatedAt,
+				ModifiedBy:  nil,
+				CountryName: "Tidak Ditemukan",
+			},
+			AirlineID: 1,
+		}
+
+		// Get airline data for arrival
+		err = airlineStmt.QueryRow(arrivalAirlineID).Scan(
+			&airlineCode,
+			&airlineLogo,
+			&airlineName,
+			&airlineCreatedAt,
+			&airlineUpdatedAt,
+		)
+		if err != nil && err != sql.ErrNoRows {
+			log.Printf("Error getting airline data: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		// Create arrival flight JSON
+		arrivalFlight := FlightJSON{
+			To: AirportWrapperJSON{
+				Airport: createAirportJSON(
+					3,                        // id
+					"SOE",                    // code
+					"Soekarno Hatta",         // name
+					"3674",                   // cityId
+					"KOTA TANGERANG SELATAN", // cityName
+					"360",                    // countryId
+					time.Date(2024, 10, 31, 9, 10, 3, 359000000, time.UTC), // createdAt
+					time.Date(2024, 11, 2, 16, 8, 7, 18000000, time.UTC),   // modifiedAt
+					departureCreatedBy,  // createdBy
+					&departureCreatedBy, // modifiedBy
+					"INDONESIA",         // countryName
+				),
+				AirportID: 3,
+			},
+			From: AirportWrapperJSON{
+				Airport: createAirportJSON(
+					6,                              // id
+					"JED",                          // code
+					"Internasional King Abdulaziz", // name
+					"0213",                         // cityId
+					"JEDDAH",                       // cityName
+					"682",                          // countryId
+					time.Date(2024, 12, 28, 16, 35, 56, 423000000, time.UTC), // createdAt
+					time.Date(2024, 12, 28, 16, 35, 56, 475415000, time.UTC), // modifiedAt
+					departureCreatedBy, // createdBy
+					nil,                // modifiedBy
+					"JEDDAH",           // countryName
+				),
+				AirportID: 6,
+			},
+			Airline: AirlineJSON{
+				ID:          1,
+				Code:        airlineCode,
+				Logo:        airlineLogo.String,
+				Name:        airlineName,
+				CountryID:   "Tidak Ditemukan",
+				CreatedAt:   airlineCreatedAt,
+				CreatedBy:   "migration",
+				ModifiedAt:  airlineUpdatedAt,
+				ModifiedBy:  nil,
+				CountryName: "Tidak Ditemukan",
+			},
+			AirlineID: 1,
+		}
+
+		// Convert to JSON
+		departureJSON, err := json.Marshal(departureFlight)
+		if err != nil {
+			log.Printf("Error marshaling departure flight: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		arrivalJSON, err := json.Marshal(arrivalFlight)
+		if err != nil {
+			log.Printf("Error marshaling arrival flight: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
 		// Convert package type
 		finalPackageType := "umrah"
 		if packageType == "2" {
@@ -328,9 +553,6 @@ func PackageService() {
 
 		// Default organization instance JSON
 		orgInstanceJSON := []byte(`{"status": "belum ada"}`)
-
-		// Convert departure and arrival to default JSON for now
-		defaultAirlineJSON := []byte("{}")
 
 		_, err = txInsertStmt.Exec(
 			travelID,                 // organization_id
@@ -344,8 +566,8 @@ func PackageService() {
 			currency,                 // currency
 			medinaHotelJSON,          // medina_hotel
 			meccaHotelJSON,           // mecca_hotel
-			defaultAirlineJSON,       // departure
-			defaultAirlineJSON,       // arrival
+			departureJSON,            // departure
+			arrivalJSON,              // arrival
 			dpType,                   // dp_type
 			int(dpAmount),            // dp_amount
 			feeType,                  // fee_type
