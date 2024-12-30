@@ -1,4 +1,4 @@
-package service
+package travel
 
 import (
 	"database/sql"
@@ -6,48 +6,41 @@ import (
 	"github.com/ApesJs/go-migration-app/database"
 	"github.com/schollz/progressbar/v3"
 	"log"
+	"regexp"
+	"strings"
 	"time"
 )
 
-func BDMService() {
-	//Panggil Koneksi Database
+// createSlug membuat slug dari string yang diberikan
+func createSlug(name string) string {
+	// Mengkonversi ke lowercase
+	slug := strings.ToLower(name)
+
+	// Menghapus karakter khusus dan mengganti spasi dengan dash
+	reg := regexp.MustCompile("[^a-z0-9]+")
+	slug = reg.ReplaceAllString(slug, "-")
+
+	// Menghapus dash di awal dan akhir string
+	slug = strings.Trim(slug, "-")
+
+	return slug
+}
+
+func OrganizationService() {
+	// Panggil Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
 	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
 	defer devIdentityDB.Close()
 
-	// Konstanta untuk role
-	const (
-		roleName = "BDM"
-		roleSlug = "bdm" // slug harus lowercase
-	)
-
-	// Pertama, periksa apakah role 'bdm' sudah ada di tabel role
-	var roleExists bool
-	err := devIdentityDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, roleSlug).Scan(&roleExists)
-	if err != nil {
-		log.Fatal("Error checking role existence:", err)
-	}
-
-	// Jika role belum ada, insert role terlebih dahulu
-	if !roleExists {
-		_, err = devIdentityDB.Exec(`INSERT INTO "role" (name, slug) 
-							   VALUES ($1, $2)`,
-			roleName, roleSlug)
-		if err != nil {
-			log.Fatal("Error inserting role:", err)
-		}
-		fmt.Printf("Created role with name '%s' and slug '%s'\n", roleName, roleSlug)
-	}
-
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err = prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM tr_rda").Scan(&totalRows)
+	err := prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM td_travel").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
 
-	fmt.Printf("Found %d records to transfer\n", totalRows)
+	fmt.Printf("Found %d total records to transfer\n", totalRows)
 
 	// Membuat progress bar
 	bar := progressbar.NewOptions(totalRows,
@@ -65,43 +58,34 @@ func BDMService() {
 	)
 
 	// Mengambil data dari database sumber
-	rows, err := prodExistingUmrahDB.Query("SELECT id, name, email, phone, created_at, updated_at FROM tr_rda")
+	rows, err := prodExistingUmrahDB.Query(`
+		SELECT 
+			id, name, slug, "desc", is_active, 
+			soft_delete, created_at, updated_at
+		FROM td_travel
+	`)
 	if err != nil {
 		log.Fatal("Error querying source database:", err)
 	}
-	defer func(rows *sql.Rows) {
-		err := rows.Close()
-		if err != nil {
-			log.Fatal("Error when closing connection to source database:", err)
-		}
-	}(rows)
+	defer rows.Close()
 
-	// Prepare statement untuk mengecek duplikasi
-	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
+	// Prepare statement untuk mengecek duplikasi (hanya berdasarkan id)
+	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
-	defer func(checkStmt *sql.Stmt) {
-		err := checkStmt.Close()
-		if err != nil {
-			log.Fatal("Error when closing connection to checkStmt:", err)
-		}
-	}(checkStmt)
+	defer checkStmt.Close()
 
-	// Prepare statement untuk insert dengan role slug
+	// Prepare statement untuk insert
 	insertStmt, err := devIdentityDB.Prepare(`
-		INSERT INTO "user" (
-			id, name, username, email, role,
-			is_active, email_verified,
-			avatar, avatar_provider, provider,
-			deleted, created_at, modified_at,
+		INSERT INTO organization (
+			id, name, slug, description, thumbnail,
+			is_active, deleted, created_at, modified_at,
 			created_by, modified_by
 		) VALUES (
 			$1, $2, $3, $4, $5,
-			true, false,
-			null, null, null,
-			false, $6, $7,
-			null, null
+			$6, $7, $8, $9,
+			$10, $11
 		)
 	`)
 	if err != nil {
@@ -114,6 +98,8 @@ func BDMService() {
 		transferredCount int
 		errorCount       int
 		skipCount        int
+		duplicateItems   []string // Slice untuk menyimpan item yang duplikat
+		generatedSlugs   []string // Slice untuk menyimpan item yang slugnya di-generate
 	)
 
 	// Begin transaction
@@ -130,17 +116,19 @@ func BDMService() {
 
 	// Memproses setiap baris data
 	var (
-		id        string
-		name      string
-		email     string
-		phone     string
-		createdAt time.Time
-		updatedAt time.Time
+		id         string
+		name       string
+		slug       sql.NullString
+		desc       sql.NullString
+		isActive   bool
+		softDelete bool
+		createdAt  time.Time
+		updatedAt  time.Time
 	)
 
 	for rows.Next() {
 		// Scan data dari source database
-		err := rows.Scan(&id, &name, &email, &phone, &createdAt, &updatedAt)
+		err := rows.Scan(&id, &name, &slug, &desc, &isActive, &softDelete, &createdAt, &updatedAt)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)
 			errorCount++
@@ -148,32 +136,44 @@ func BDMService() {
 			continue
 		}
 
-		// Cek apakah email sudah ada di database target
+		// Cek apakah id sudah ada di database target
 		var count int
-		err = txCheckStmt.QueryRow(email).Scan(&count)
+		err = txCheckStmt.QueryRow(id).Scan(&count)
 		if err != nil {
-			log.Printf("Error checking for duplicate email: %v", err)
+			log.Printf("Error checking for duplicates: %v", err)
 			errorCount++
 			bar.Add(1)
 			continue
 		}
 
-		// Jika email sudah ada, skip record ini
+		// Jika id sudah ada, catat sebagai duplikat
 		if count > 0 {
+			duplicateItems = append(duplicateItems, fmt.Sprintf("%s (%s)", name, id))
 			skipCount++
 			bar.Add(1)
 			continue
 		}
 
-		// Insert ke target database dengan role slug
+		// Generate slug jika null
+		finalSlug := slug.String
+		if !slug.Valid || finalSlug == "" {
+			finalSlug = createSlug(name)
+			generatedSlugs = append(generatedSlugs, fmt.Sprintf("%s (%s) -> %s", name, id, finalSlug))
+		}
+
+		// Insert ke target database
 		_, err = txInsertStmt.Exec(
-			id,        // id
-			name,      // name
-			email,     // username (dari email)
-			email,     // email
-			roleSlug,  // role (menggunakan slug)
-			createdAt, // created_at
-			updatedAt, // modified_at
+			id,          // id
+			name,        // name
+			finalSlug,   // slug (menggunakan slug yang sudah di-handle)
+			desc.String, // description
+			nil,         // thumbnail (null)
+			isActive,    // is_active
+			softDelete,  // deleted
+			createdAt,   // created_at
+			updatedAt,   // modified_at
+			"migration", // created_by
+			nil,         // modified_by
 		)
 		if err != nil {
 			log.Printf("Error inserting row: %v", err)
@@ -207,4 +207,22 @@ func BDMService() {
 	fmt.Printf("Failed transfers: %d\n", errorCount)
 	fmt.Printf("Duration: %s\n", duration.Round(time.Second))
 	fmt.Printf("Average speed: %.2f records/second\n", float64(transferredCount)/duration.Seconds())
+
+	// Menampilkan list item duplikat
+	if len(duplicateItems) > 0 {
+		fmt.Printf("\nDuplicate Items:\n")
+		fmt.Printf("---------------\n")
+		for i, item := range duplicateItems {
+			fmt.Printf("%d. %s\n", i+1, item)
+		}
+	}
+
+	// Menampilkan list item yang slugnya di-generate
+	if len(generatedSlugs) > 0 {
+		fmt.Printf("\nGenerated Slugs:\n")
+		fmt.Printf("---------------\n")
+		for i, item := range generatedSlugs {
+			fmt.Printf("%d. %s\n", i+1, item)
+		}
+	}
 }
