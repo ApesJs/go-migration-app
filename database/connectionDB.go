@@ -53,6 +53,29 @@ func ConnectionLocalUmrahDB() *sql.DB {
 	return LocalUmrahDB
 }
 
+func ConnectionLocalGeneralDB() *sql.DB {
+	config, err := configApp.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	localGeneralConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.LocalGeneralDBHost, config.LocalGeneralDBPort, config.LocalGeneralDBUser, config.LocalGeneralDBPassword, config.LocalGeneralDBName)
+
+	LocalGeneralDB, err := sql.Open("postgres", localGeneralConnStr)
+	if err != nil {
+		log.Fatal("Error connecting to local general database:", err)
+	}
+
+	if err := LocalGeneralDB.Ping(); err != nil {
+		log.Fatal("Error connecting to local general database:", err)
+	}
+
+	fmt.Println("Successfully connected to local general databases")
+
+	return LocalGeneralDB
+}
+
 func ConnectionDevIdentityDB() *sql.DB {
 	// Load konfigurasi dari file .env
 	config, err := configApp.LoadConfig()

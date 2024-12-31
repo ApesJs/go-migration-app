@@ -9,8 +9,8 @@ func TotalRows(prodExistingUmrahDB *sql.DB) (int, error) {
 	err := prodExistingUmrahDB.QueryRow(`
         SELECT COUNT(*) 
         FROM td_package 
-        WHERE soft_delete = false 
-        AND departure_date < CURRENT_TIMESTAMP`).Scan(&totalRows)
+       	WHERE soft_delete = false
+		AND departure_date >= '2025-01-10'`).Scan(&totalRows)
 
 	return totalRows, err
 }
@@ -92,8 +92,8 @@ func GetDataPackage(prodExistingUmrahDB *sql.DB) (*sql.Rows, error) {
 			   departure_date, arrival_date, price_double, price_triple,
 			   price_quad
 		FROM td_package 
-		WHERE soft_delete = false 
-		AND departure_date < CURRENT_TIMESTAMP
+		WHERE soft_delete = false
+		AND departure_date >= '2025-01-10'
 	`)
 }
 

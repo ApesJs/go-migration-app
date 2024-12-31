@@ -17,6 +17,11 @@ type Config struct {
 	LocalUmrahDBName            string
 	LocalUmrahDBUser            string
 	LocalUmrahDBPassword        string
+	LocalGeneralDBHost          string
+	LocalGeneralDBPort          string
+	LocalGeneralDBName          string
+	LocalGeneralDBUser          string
+	LocalGeneralDBPassword      string
 	DevIdentityDBHost           string
 	DevIdentityDBPort           string
 	DevIdentityDBName           string
@@ -55,6 +60,11 @@ func LoadConfig() (Config, error) {
 		LocalUmrahDBName:            os.Getenv("LOCAL_UMRAH_DB_NAME"),
 		LocalUmrahDBUser:            os.Getenv("LOCAL_UMRAH_DB_USER"),
 		LocalUmrahDBPassword:        os.Getenv("LOCAL_UMRAH_DB_PASSWORD"),
+		LocalGeneralDBHost:          os.Getenv("LOCAL_GENERAL_DB_HOST"),
+		LocalGeneralDBPort:          os.Getenv("LOCAL_GENERAL_DB_PORT"),
+		LocalGeneralDBName:          os.Getenv("LOCAL_GENERAL_DB_NAME"),
+		LocalGeneralDBUser:          os.Getenv("LOCAL_GENERAL_DB_USER"),
+		LocalGeneralDBPassword:      os.Getenv("LOCAL_GENERAL_DB_PASSWORD"),
 		DevIdentityDBHost:           os.Getenv("DEV_IDENTITY_DB_HOST"),
 		DevIdentityDBPort:           os.Getenv("DEV_IDENTITY_DB_PORT"),
 		DevIdentityDBName:           os.Getenv("DEV_IDENTITY_DB_NAME"),
@@ -80,6 +90,7 @@ func LoadConfig() (Config, error) {
 	// Validasi konfigurasi
 	if config.LocalIdentityDBName == "" || config.LocalIdentityDBUser == "" || config.LocalIdentityDBPassword == "" ||
 		config.LocalUmrahDBName == "" || config.LocalUmrahDBUser == "" || config.LocalUmrahDBPassword == "" ||
+		config.LocalGeneralDBName == "" || config.LocalGeneralDBUser == "" || config.LocalGeneralDBPassword == "" ||
 		config.DevUmrahDBName == "" || config.DevUmrahDBUser == "" || config.DevUmrahDBPassword == "" ||
 		config.DevGeneralDBName == "" || config.DevGeneralDBUser == "" || config.DevGeneralDBPassword == "" ||
 		config.ProdExistingUmrahDBName == "" || config.ProdExistingUmrahDBUser == "" || config.ProdExistingUmrahDBPassword == "" ||
