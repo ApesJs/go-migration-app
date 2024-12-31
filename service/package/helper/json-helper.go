@@ -5,6 +5,18 @@ import (
 	"time"
 )
 
+// Struktur untuk Itinerary
+type Activity struct {
+	Time     string `json:"time"`
+	Activity string `json:"activity"`
+	Location string `json:"location"`
+}
+
+type AgendaItem struct {
+	Title      string     `json:"title"`
+	Activities []Activity `json:"activities"`
+}
+
 // HotelJSON struktur untuk JSON hotel
 type HotelJSON struct {
 	ID         int       `json:"id"`

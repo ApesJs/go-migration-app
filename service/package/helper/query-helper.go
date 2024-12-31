@@ -96,3 +96,25 @@ func GetDataPackage(prodExistingUmrahDB *sql.DB) (*sql.Rows, error) {
 		AND departure_date < CURRENT_TIMESTAMP
 	`)
 }
+
+func GetPackageItineraryStmt(prodExistingUmrahDB *sql.DB) (*sql.Stmt, error) {
+	return prodExistingUmrahDB.Prepare(`
+        SELECT i.time, i.activity, i.city_id, i.created_at,
+               c.name as city_name
+        FROM td_package_itinerary i
+        JOIN td_city c ON i.city_id = c.id
+        WHERE i.package_id = $1 
+        AND i.soft_delete = false
+        ORDER BY i.created_at DESC
+    `)
+}
+
+func InsertItineraryStmt(localUmrahDB *sql.DB) (*sql.Stmt, error) {
+	return localUmrahDB.Prepare(`
+        INSERT INTO package_itinerary (
+            package_id, agenda, created_at, modified_at, created_by
+        ) VALUES (
+            $1, $2, $3, $4, $5
+        )
+    `)
+}

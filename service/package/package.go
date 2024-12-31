@@ -8,6 +8,7 @@ import (
 	"github.com/ApesJs/go-migration-app/service/package/helper"
 	"github.com/schollz/progressbar/v3"
 	"log"
+	"sort"
 	"time"
 )
 
@@ -92,6 +93,20 @@ func PackageService() {
 	}
 	defer rows.Close()
 
+	// Statement untuk mengambil data itinerary
+	itineraryStmt, err := helper.GetPackageItineraryStmt(prodExistingUmrahDB)
+	if err != nil {
+		log.Fatal("Error preparing itinerary statement:", err)
+	}
+	defer itineraryStmt.Close()
+
+	// Statement untuk insert itinerary
+	insertItineraryStmt, err := helper.InsertItineraryStmt(localUmrahDB)
+	if err != nil {
+		log.Fatal("Error preparing itinerary insert statement:", err)
+	}
+	defer insertItineraryStmt.Close()
+
 	// Variabel untuk statistik dan tracking
 	var (
 		transferredCount    int
@@ -109,6 +124,7 @@ func PackageService() {
 	// Prepare statements dalam transaksi
 	txInsertPackageStmt := tx.Stmt(insertPackageStmt)
 	txInsertVariantStmt := tx.Stmt(insertVariantStmt)
+	txInsertItineraryStmt := tx.Stmt(insertItineraryStmt)
 
 	startTime := time.Now()
 
@@ -397,6 +413,112 @@ func PackageService() {
 
 		if err != nil {
 			log.Printf("Error inserting package variant: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		// Process itinerary data
+		itineraryRows, err := itineraryStmt.Query(id)
+		if err != nil {
+			log.Printf("Error querying itinerary data: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		var agendaItems []helper.AgendaItem
+		dayCounter := 1
+
+		// Temporary storage untuk grouping
+		type TempActivity struct {
+			Time     time.Time
+			Activity string
+			Location string
+		}
+		var activities []TempActivity
+
+		// Collect semua activities dulu
+		for itineraryRows.Next() {
+			var (
+				activityTime time.Time
+				activity     string
+				cityID       string
+				createTime   time.Time
+				cityName     string
+			)
+
+			err := itineraryRows.Scan(&activityTime, &activity, &cityID, &createTime, &cityName)
+			if err != nil {
+				log.Printf("Error scanning itinerary row: %v", err)
+				continue
+			}
+
+			activities = append(activities, TempActivity{
+				Time:     activityTime,
+				Activity: activity,
+				Location: cityName,
+			})
+		}
+		itineraryRows.Close()
+
+		// Sort activities berdasarkan waktu untuk satu hari
+		sort.Slice(activities, func(i, j int) bool {
+			return activities[i].Time.Before(activities[j].Time)
+		})
+
+		// Group activities per hari
+		currentDay := time.Time{}
+		var currentActivities []helper.Activity
+
+		for i, act := range activities {
+			if !act.Time.Truncate(24 * time.Hour).Equal(currentDay) {
+				if len(currentActivities) > 0 {
+					agendaItems = append(agendaItems, helper.AgendaItem{
+						Title:      fmt.Sprintf("Hari Ke %d", dayCounter),
+						Activities: currentActivities,
+					})
+					dayCounter++
+				}
+				currentDay = act.Time.Truncate(24 * time.Hour)
+				currentActivities = []helper.Activity{}
+			}
+
+			currentActivities = append(currentActivities, helper.Activity{
+				Time:     act.Time.Format("15:04"),
+				Activity: act.Activity,
+				Location: act.Location,
+			})
+
+			// Handle last group
+			if i == len(activities)-1 {
+				agendaItems = append(agendaItems, helper.AgendaItem{
+					Title:      fmt.Sprintf("Hari Ke %d", dayCounter),
+					Activities: currentActivities,
+				})
+			}
+		}
+
+		// Convert to JSON
+		agendaJSON, err := json.Marshal(agendaItems)
+		if err != nil {
+			log.Printf("Error marshaling agenda: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
+		// Insert itinerary
+		_, err = txInsertItineraryStmt.Exec(
+			packageID,   // package_id
+			agendaJSON,  // agenda
+			createdAt,   // created_at
+			updatedAt,   // modified_at
+			"migration", // created_by
+		)
+
+		if err != nil {
+			log.Printf("Error inserting itinerary: %v", err)
 			errorCount++
 			bar.Add(1)
 			continue
