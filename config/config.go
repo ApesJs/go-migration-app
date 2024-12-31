@@ -27,6 +27,11 @@ type Config struct {
 	DevUmrahDBName              string
 	DevUmrahDBUser              string
 	DevUmrahDBPassword          string
+	DevGeneralDBHost            string
+	DevGeneralDBPort            string
+	DevGeneralDBName            string
+	DevGeneralDBUser            string
+	DevGeneralDBPassword        string
 	ProdExistingUmrahDBHost     string
 	ProdExistingUmrahDBPort     string
 	ProdExistingUmrahDBName     string
@@ -60,6 +65,11 @@ func LoadConfig() (Config, error) {
 		DevUmrahDBName:              os.Getenv("DEV_UMRAH_DB_NAME"),
 		DevUmrahDBUser:              os.Getenv("DEV_UMRAH_DB_USER"),
 		DevUmrahDBPassword:          os.Getenv("DEV_UMRAH_DB_PASSWORD"),
+		DevGeneralDBHost:            os.Getenv("DEV_GENERAL_DB_HOST"),
+		DevGeneralDBPort:            os.Getenv("DEV_GENERAL_DB_PORT"),
+		DevGeneralDBName:            os.Getenv("DEV_GENERAL_DB_NAME"),
+		DevGeneralDBUser:            os.Getenv("DEV_GENERAL_DB_USER"),
+		DevGeneralDBPassword:        os.Getenv("DEV_GENERAL_DB_PASSWORD"),
 		ProdExistingUmrahDBHost:     os.Getenv("PROD_EXISTING_UMRAH_DB_HOST"),
 		ProdExistingUmrahDBPort:     os.Getenv("PROD_EXISTING_UMRAH_DB_PORT"),
 		ProdExistingUmrahDBName:     os.Getenv("PROD_EXISTING_UMRAH_DB_NAME"),
@@ -71,6 +81,7 @@ func LoadConfig() (Config, error) {
 	if config.LocalIdentityDBName == "" || config.LocalIdentityDBUser == "" || config.LocalIdentityDBPassword == "" ||
 		config.LocalUmrahDBName == "" || config.LocalUmrahDBUser == "" || config.LocalUmrahDBPassword == "" ||
 		config.DevUmrahDBName == "" || config.DevUmrahDBUser == "" || config.DevUmrahDBPassword == "" ||
+		config.DevGeneralDBName == "" || config.DevGeneralDBUser == "" || config.DevGeneralDBPassword == "" ||
 		config.ProdExistingUmrahDBName == "" || config.ProdExistingUmrahDBUser == "" || config.ProdExistingUmrahDBPassword == "" ||
 		config.DevIdentityDBName == "" || config.DevIdentityDBUser == "" || config.DevIdentityDBPassword == "" {
 		return Config{}, fmt.Errorf("missing required environment variables")

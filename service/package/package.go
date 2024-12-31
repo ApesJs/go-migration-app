@@ -15,11 +15,12 @@ import (
 func PackageService() {
 	// Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	localUmrahDB := database.ConnectionLocalUmrahDB()
+	//devUmrahDB := database.ConnectionLocalUmrahDB()
+	devUmrahDB := database.ConnectionDevUmrahDB()
 	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer devIdentityDB.Close()
 	defer prodExistingUmrahDB.Close()
-	defer localUmrahDB.Close()
+	defer devUmrahDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	totalRows, err := helper.TotalRows(prodExistingUmrahDB)
@@ -73,14 +74,14 @@ func PackageService() {
 	defer airlineStmt.Close()
 
 	// Statement untuk insert ke tabel package
-	insertPackageStmt, err := helper.InsertPackageStmt(localUmrahDB)
+	insertPackageStmt, err := helper.InsertPackageStmt(devUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing package insert statement:", err)
 	}
 	defer insertPackageStmt.Close()
 
 	// Statement untuk insert ke tabel package_variant
-	insertVariantStmt, err := helper.InsertVariantStmt(localUmrahDB)
+	insertVariantStmt, err := helper.InsertVariantStmt(devUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing variant insert statement:", err)
 	}
@@ -101,7 +102,7 @@ func PackageService() {
 	defer itineraryStmt.Close()
 
 	// Statement untuk insert itinerary
-	insertItineraryStmt, err := helper.InsertItineraryStmt(localUmrahDB)
+	insertItineraryStmt, err := helper.InsertItineraryStmt(devUmrahDB)
 	if err != nil {
 		log.Fatal("Error preparing itinerary insert statement:", err)
 	}
@@ -112,11 +113,12 @@ func PackageService() {
 		transferredCount    int
 		errorCount          int
 		variantCount        int
+		itineraryCount      int
 		missingOrgInstances []helper.MissingOrgInstance
 	)
 
 	// Begin transaction
-	tx, err := localUmrahDB.Begin()
+	tx, err := devUmrahDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
@@ -526,6 +528,7 @@ func PackageService() {
 
 		transferredCount++
 		variantCount++
+		itineraryCount++
 		bar.Add(1)
 	}
 
@@ -542,7 +545,7 @@ func PackageService() {
 	fmt.Printf("\n[2/3] Standardizing city names...\n")
 
 	// Standardisasi nama kota Mekah/Mekkah
-	updateMeccaResult, err := localUmrahDB.Exec(`
+	updateMeccaResult, err := devUmrahDB.Exec(`
 		UPDATE package
 		SET mecca_hotel = jsonb_set(
 			mecca_hotel,
@@ -557,7 +560,7 @@ func PackageService() {
 	}
 
 	// Standardisasi nama kota Madinah
-	updateMadinahResult, err := localUmrahDB.Exec(`
+	updateMadinahResult, err := devUmrahDB.Exec(`
 		UPDATE package
 		SET medina_hotel = jsonb_set(
 			medina_hotel,
@@ -570,13 +573,38 @@ func PackageService() {
 		log.Printf("Error updating Madinah city names: %v", err)
 	}
 
+	// Penambahan https untuk url gambar yang tidak lengkap
+	updatePackageThumbnailResult, err := devUmrahDB.Exec(`
+		UPDATE package
+		SET thumbnail = CASE
+    	WHEN thumbnail NOT LIKE 'https://%'
+    	THEN 'https://sin1.contabostorage.com/8e42befee02d4023b5b53cb887ef1d70:umroh-prod/' || thumbnail
+    	ELSE thumbnail
+		END
+		WHERE thumbnail IS NOT NULL AND thumbnail != '';
+	`)
+
+	updateVariantThumbnailResult, err := devUmrahDB.Exec(`
+		UPDATE package_variant
+		SET thumbnail = CASE
+    	WHEN thumbnail NOT LIKE 'https://%'
+    	THEN 'https://sin1.contabostorage.com/8e42befee02d4023b5b53cb887ef1d70:umroh-prod/' || thumbnail
+    	ELSE thumbnail
+		END
+		WHERE thumbnail IS NOT NULL AND thumbnail != '';
+	`)
+
 	// Get number of rows affected
 	meccaRowsAffected, _ := updateMeccaResult.RowsAffected()
 	madinahRowsAffected, _ := updateMadinahResult.RowsAffected()
+	packageThumbnailRowsAfected, _ := updatePackageThumbnailResult.RowsAffected()
+	variantThumbnailRowsAfected, _ := updateVariantThumbnailResult.RowsAffected()
 
 	fmt.Printf("\n[3/3] City name standardization completed!\n")
 	fmt.Printf("Standardized %d Mecca hotel records\n", meccaRowsAffected)
 	fmt.Printf("Standardized %d Madinah hotel records\n", madinahRowsAffected)
+	fmt.Printf("Change %d Package Thumbnail url\n", packageThumbnailRowsAfected)
+	fmt.Printf("Change %d Variant Thumbnail url\n", variantThumbnailRowsAfected)
 
 	duration := time.Since(startTime)
 
@@ -585,6 +613,7 @@ func PackageService() {
 	fmt.Printf("Total records: %d\n", totalRows)
 	fmt.Printf("Successfully transferred packages: %d\n", transferredCount)
 	fmt.Printf("Successfully transferred variants: %d\n", variantCount)
+	fmt.Printf("Successfully transferred itineraries: %d\n", itineraryCount)
 	fmt.Printf("Failed transfers: %d\n", errorCount)
 	fmt.Printf("Duration: %s\n", duration.Round(time.Second))
 	fmt.Printf("Average speed: %.2f records/second\n", float64(transferredCount)/duration.Seconds())

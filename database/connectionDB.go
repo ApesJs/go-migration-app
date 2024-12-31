@@ -102,6 +102,29 @@ func ConnectionDevUmrahDB() *sql.DB {
 	return devUmrahDB
 }
 
+func ConnectionDevGeneralDB() *sql.DB {
+	config, err := configApp.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	devGeneralConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.DevGeneralDBHost, config.DevGeneralDBPort, config.DevGeneralDBUser, config.DevGeneralDBPassword, config.DevGeneralDBName)
+
+	devGeneralDB, err := sql.Open("postgres", devGeneralConnStr)
+	if err != nil {
+		log.Fatal("Error connecting to dev general database:", err)
+	}
+
+	if err := devGeneralDB.Ping(); err != nil {
+		log.Fatal("Error connecting to dev general database:", err)
+	}
+
+	fmt.Println("Successfully connected to dev general databases")
+
+	return devGeneralDB
+}
+
 func ConnectionProdExistingUmrahDB() *sql.DB {
 	config, err := configApp.LoadConfig()
 	if err != nil {
