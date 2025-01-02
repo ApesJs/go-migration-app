@@ -1,0 +1,52 @@
+[
+  {
+    "name": "JEDDAH",
+    "latitude": 21.5433,
+    "longitude": 39.1728
+  },
+  {
+    "name": "RIYADH",
+    "latitude": 24.7136,
+    "longitude": 46.6753
+  },
+  {
+    "name": "MADINAH",
+    "latitude": 24.5247,
+    "longitude": 39.5692
+  },
+  {
+    "name": "DAMMAM",
+    "latitude": 26.4207,
+    "longitude": 50.0888
+  },
+  {
+    "name": "BURAIDAH",
+    "latitude": 26.3262,
+    "longitude": 43.9735
+  },
+  {
+    "name": "ABHA",
+    "latitude": 18.2164,
+    "longitude": 42.5053
+  },
+  {
+    "name": "TABUK",
+    "latitude": 28.3835,
+    "longitude": 36.5662
+  },
+  {
+    "name": "TAIF",
+    "latitude": 21.2703,
+    "longitude": 40.4159
+  },
+  {
+    "name": "YANBU",
+    "latitude": 24.0231,
+    "longitude": 38.1899
+  },
+  {
+    "name": "AL-AHSA",
+    "latitude": 25.3841,
+    "longitude": 49.5873
+  }
+]

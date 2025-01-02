@@ -360,6 +360,12 @@ func PackageService() {
 			finalPackageType = "hajj"
 		}
 
+		//change dp type
+		changeDpType := "percentage"
+		if dpType == "fixed" {
+			changeDpType = "nominal"
+		}
+
 		// Insert package and get ID
 		var packageID int
 		err = txInsertPackageStmt.QueryRow(
@@ -376,7 +382,7 @@ func PackageService() {
 			meccaHotelJSON,           // mecca_hotel
 			departureJSON,            // departure
 			arrivalJSON,              // arrival
-			dpType,                   // dp_type
+			changeDpType,             // dp_type
 			int(dpAmount),            // dp_amount
 			feeType,                  // fee_type
 			int(feeAmount),           // fee_amount

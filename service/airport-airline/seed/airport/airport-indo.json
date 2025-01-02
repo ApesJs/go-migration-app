@@ -1,0 +1,217 @@
+[
+  {
+    "name": "Sultan Iskandar Muda International Airport",
+    "code": "BTJ",
+    "city": "KOTA BANDA ACEH"
+  },
+  {
+    "name": "Malikus Saleh Airport",
+    "code": "LSW",
+    "city": "KOTA LHOKSEUMAWE"
+  },
+  {
+    "name": "Kualanamu International Airport",
+    "code": "KNO",
+    "city": "KOTA MEDAN"
+  },
+  {
+    "name": "Binaka Airport",
+    "code": "GNS",
+    "city": "KOTA GUNUNGSITOLI"
+  },
+  {
+    "name": "Aek Godang Airport",
+    "code": "AEG",
+    "city": "KOTA PADANG SIDEMPUAN"
+  },
+  {
+    "name": "Minangkabau International Airport",
+    "code": "PDG",
+    "city": "KOTA PADANG"
+  },
+  {
+    "name": "Sultan Syarif Kasim II International Airport",
+    "code": "PKU",
+    "city": "KOTA PEKANBARU"
+  },
+  {
+    "name": "Tempuling Airport",
+    "code": "TJB",
+    "city": "KABUPATEN INDRAGIRI HILIR"
+  },
+  {
+    "name": "Halim Perdanakusuma International Airport",
+    "code": "HLP",
+    "city": "KOTA JAKARTA TIMUR"
+  },
+  {
+    "name": "Soekarno-Hatta International Airport",
+    "code": "CGK",
+    "city": "KOTA TANGERANG"
+  },
+  {
+    "name": "Husein Sastranegara International Airport",
+    "code": "BDO",
+    "city": "KOTA BANDUNG"
+  },
+  {
+    "name": "Kertajati International Airport",
+    "code": "KJT",
+    "city": "KABUPATEN MAJALENGKA"
+  },
+  {
+    "name": "Nusawiru Airport",
+    "code": "CJN",
+    "city": "KABUPATEN PANGANDARAN"
+  },
+  {
+    "name": "Achmad Yani International Airport",
+    "code": "SRG",
+    "city": "KOTA SEMARANG"
+  },
+  {
+    "name": "Adisumarmo International Airport",
+    "code": "SOC",
+    "city": "KOTA SURAKARTA"
+  },
+  {
+    "name": "Tunggul Wulung Airport",
+    "code": "CXP",
+    "city": "KABUPATEN CILACAP"
+  },
+  {
+    "name": "Yogyakarta International Airport",
+    "code": "YIA",
+    "city": "KABUPATEN KULON PROGO"
+  },
+  {
+    "name": "Juanda International Airport",
+    "code": "SUB",
+    "city": "KABUPATEN SIDOARJO"
+  },
+  {
+    "name": "Abdul Rachman Saleh Airport",
+    "code": "MLG",
+    "city": "KOTA MALANG"
+  },
+  {
+    "name": "Banyuwangi International Airport",
+    "code": "BWX",
+    "city": "KABUPATEN BANYUWANGI"
+  },
+  {
+    "name": "Ngurah Rai International Airport",
+    "code": "DPS",
+    "city": "KOTA DENPASAR"
+  },
+  {
+    "name": "Sultan Muhammad Salahuddin Airport",
+    "code": "BMU",
+    "city": "KABUPATEN BIMA"
+  },
+  {
+    "name": "El Tari International Airport",
+    "code": "KOE",
+    "city": "KOTA KUPANG"
+  },
+  {
+    "name": "Mali Airport",
+    "code": "ARD",
+    "city": "KABUPATEN ALOR"
+  },
+  {
+    "name": "Supadio International Airport",
+    "code": "PNK",
+    "city": "KOTA PONTIANAK"
+  },
+  {
+    "name": "Rahadi Osman Airport",
+    "code": "KTG",
+    "city": "KABUPATEN KETAPANG"
+  },
+  {
+    "name": "Syamsudin Noor International Airport",
+    "code": "BDJ",
+    "city": "KOTA BANJARMASIN"
+  },
+  {
+    "name": "Sultan Aji Muhammad Sulaiman Sepinggan International Airport",
+    "code": "BPN",
+    "city": "KOTA BALIKPAPAN"
+  },
+  {
+    "name": "APT Pranoto International Airport",
+    "code": "AAP",
+    "city": "KOTA SAMARINDA"
+  },
+  {
+    "name": "Sam Ratulangi International Airport",
+    "code": "MDC",
+    "city": "KOTA MANADO"
+  },
+  {
+    "name": "Pogogul Airport",
+    "code": "BUO",
+    "city": "KABUPATEN BUOL"
+  },
+  {
+    "name": "Kasiguncu Airport",
+    "code": "PSJ",
+    "city": "KABUPATEN POSO"
+  },
+  {
+    "name": "Sultan Hasanuddin International Airport",
+    "code": "UPG",
+    "city": "KOTA MAKASSAR"
+  },
+  {
+    "name": "Pongtiku Airport",
+    "code": "TTR",
+    "city": "KABUPATEN TANA TORAJA"
+  },
+  {
+    "name": "Haluoleo Airport",
+    "code": "KDI",
+    "city": "KOTA KENDARI"
+  },
+  {
+    "name": "Djalaluddin Airport",
+    "code": "GTO",
+    "city": "KOTA GORONTALO"
+  },
+  {
+    "name": "Pattimura International Airport",
+    "code": "AMQ",
+    "city": "KOTA AMBON"
+  },
+  {
+    "name": "Sultan Babullah Airport",
+    "code": "TTE",
+    "city": "KOTA TERNATE"
+  },
+  {
+    "name": "Sentani International Airport",
+    "code": "DJJ",
+    "city": "KOTA JAYAPURA"
+  },
+  {
+    "name": "Mopah International Airport",
+    "code": "MKQ",
+    "city": "KABUPATEN MERAUKE"
+  },
+  {
+    "name": "Dominique Edward Osok Airport",
+    "code": "SOQ",
+    "city": "KABUPATEN SORONG"
+  },
+  {
+    "name": "Rendani Airport",
+    "code": "MKW",
+    "city": "KABUPATEN MANOKWARI"
+  },
+  {
+    "name": "Utarom Airport",
+    "code": "KNG",
+    "city": "KABUPATEN KAIMANA"
+  }
+]

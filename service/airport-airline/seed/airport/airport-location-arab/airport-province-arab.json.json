@@ -1,0 +1,37 @@
+[
+	{
+		"name": "MAKKAH",
+		"latitude": 21.4266,
+		"longitude": 39.8256
+	},
+	{
+		"name": "RIYADH",
+		"latitude": 24.7136,
+		"longitude": 46.6753
+	},
+	{
+		"name": "MADINAH",
+		"latitude": 24.5247,
+		"longitude": 39.5692
+	},
+	{
+		"name": "EASTERN",
+		"latitude": 26.4207,
+		"longitude": 50.0888
+	},
+	{
+		"name": "AL-QASSIM",
+		"latitude": 26.3272,
+		"longitude": 43.9735
+	},
+	{
+		"name": "ASIR",
+		"latitude": 18.2164,
+		"longitude": 42.5053
+	},
+	{
+		"name": "TABUK",
+		"latitude": 28.3835,
+		"longitude": 36.5662
+	}
+]
