@@ -417,7 +417,7 @@ func HotelService() {
 	// Standardisasi nama kota Mekah/Mekkah
 	updateMeccaResult, err := devGeneralDB.Exec(`
 		UPDATE hotel
-		SET city_name = "MAKKAH"
+		SET city_name = 'MAKKAH'
 		WHERE city_name = 'Mekkah'
 		OR city_name = 'Mekah'
 	`)
@@ -428,7 +428,7 @@ func HotelService() {
 	// Standardisasi nama kota Madinah
 	updateMadinahResult, err := devGeneralDB.Exec(`
 		UPDATE hotel
-		SET city_name = "MADINAH"
+		SET city_name = 'MADINAH'
 		WHERE city_name = 'Madinah'
 	`)
 	if err != nil {

@@ -388,6 +388,7 @@ func PackageService() {
 			organizationInstanceName, // organization_instance_name
 			orgInstanceJSON,          // organization_instance
 			slug.String,              // slug
+			true,                     // published
 		).Scan(&packageID)
 
 		if err != nil {
