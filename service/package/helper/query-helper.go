@@ -85,16 +85,16 @@ func InsertVariantStmt(localUmrahDB *sql.DB) (*sql.Stmt, error) {
 
 func GetDataPackage(prodExistingUmrahDB *sql.DB) (*sql.Rows, error) {
 	return prodExistingUmrahDB.Query(`
-		SELECT id, travel_id, departure_airline_id, arrival_airline_id,
-			   name, slug, image, type, share_desc, term_condition,
-			   facility, currency, dp_type, dp_amount, fee_type,
-			   fee_amount, soft_delete, created_at, updated_at,
-			   departure_date, arrival_date, price_double, price_triple,
-			   price_quad
-		FROM td_package 
-		WHERE soft_delete = false
-		AND departure_date >= '2025-01-10'
-	`)
+        SELECT id, travel_id, departure_airline_id, arrival_airline_id,
+               name, slug, image, type, share_desc, term_condition,
+               facility, currency, dp_type, dp_amount, fee_type,
+               fee_amount, soft_delete, created_at, updated_at,
+               departure_date, arrival_date, price_double, price_triple,
+               price_quad, closed
+        FROM td_package 
+        WHERE soft_delete = false
+        AND departure_date >= '2025-01-10'
+    `)
 }
 
 func GetPackageItineraryStmt(prodExistingUmrahDB *sql.DB) (*sql.Stmt, error) {

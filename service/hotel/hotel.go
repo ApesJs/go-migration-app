@@ -1,3 +1,4 @@
+// hotel.go
 package hotel
 
 import (
@@ -16,9 +17,14 @@ func HotelService() {
 	devUmrahDB := database.ConnectionDevUmrahDB()
 	devGeneralDB := database.ConnectionDevGeneralDB()
 	devIdentityDB := database.ConnectionDevIdentityDB()
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	defer prodExistingUmrahDB.Close()
 	defer devIdentityDB.Close()
 	defer devGeneralDB.Close()
 	defer devUmrahDB.Close()
+
+	fmt.Printf("\nPhase 1: Migrating Hotels from Package Table\n")
+	fmt.Printf("==========================================\n")
 
 	// Get total number of hotels to process
 	totalHotels, err := helper.TotalHotels(devUmrahDB)
@@ -26,7 +32,7 @@ func HotelService() {
 		log.Fatal("Error counting hotels:", err)
 	}
 
-	fmt.Printf("Found %d total hotels to transfer\n", totalHotels)
+	fmt.Printf("Found %d total hotels to transfer from package\n", totalHotels)
 
 	// Prepare statements
 	getAllPackageHotelsStmt, err := helper.GetAllPackageHotelsStmt(devUmrahDB)
@@ -65,12 +71,12 @@ func HotelService() {
 	}
 	defer updateMeccaHotelStmt.Close()
 
-	// Progress bar dengan format yang sama seperti PackageService
+	// Progress bar untuk Phase 1
 	bar := progressbar.NewOptions(totalHotels,
 		progressbar.OptionEnableColorCodes(true),
 		progressbar.OptionShowCount(),
 		progressbar.OptionSetWidth(15),
-		progressbar.OptionSetDescription("[cyan][1/3][reset] Transferring hotels..."),
+		progressbar.OptionSetDescription("[cyan][1/3][reset] Transferring package hotels..."),
 		progressbar.OptionSetTheme(progressbar.Theme{
 			Saucer:        "[green]=[reset]",
 			SaucerHead:    "[green]>[reset]",
@@ -79,7 +85,7 @@ func HotelService() {
 			BarEnd:        "]",
 		}))
 
-	// Statistics
+	// Statistics untuk Phase 1
 	var (
 		processedCount int
 		insertedCount  int
@@ -133,7 +139,7 @@ func HotelService() {
 			}
 
 			// Process hotel
-			newID, err := processHotel(tx, hotel, getCityIDStmt, checkHotelExistStmt, insertHotelStmt)
+			newID, err := helper.ProcessHotel(tx, hotel, getCityIDStmt, checkHotelExistStmt, insertHotelStmt)
 			if err != nil {
 				log.Printf("Error processing medina hotel: %v, Hotel Data: %+v", err, hotel)
 				errorCount++
@@ -167,7 +173,7 @@ func HotelService() {
 			}
 
 			// Process hotel
-			newID, err := processHotel(tx, hotel, getCityIDStmt, checkHotelExistStmt, insertHotelStmt)
+			newID, err := helper.ProcessHotel(tx, hotel, getCityIDStmt, checkHotelExistStmt, insertHotelStmt)
 			if err != nil {
 				log.Printf("Error processing mecca hotel: %v", err)
 				errorCount++
@@ -245,10 +251,10 @@ func HotelService() {
 	medinaImageRowsAffected, _ := updateMedinaImageResult.RowsAffected()
 	meccaImageRowsAffected, _ := updateMeccaImageResult.RowsAffected()
 
-	duration := time.Since(startTime)
+	durationPhase1 := time.Since(startTime)
 
-	// Print detailed summary like PackageService
-	fmt.Printf("\nHotel Migration Summary:\n")
+	// Print summary untuk Phase 1
+	fmt.Printf("\nPhase 1 Migration Summary:\n")
 	fmt.Printf("------------------------\n")
 	fmt.Printf("Total hotels found: %d\n", totalHotels)
 	fmt.Printf("Successfully processed hotels: %d\n", processedCount)
@@ -259,62 +265,204 @@ func HotelService() {
 	fmt.Printf("Updated Madinah hotel images: %d\n", medinaImageRowsAffected)
 	fmt.Printf("Updated Makkah hotel images: %d\n", meccaImageRowsAffected)
 	fmt.Printf("\nPerformance Metrics:\n")
-	fmt.Printf("Duration: %s\n", duration.Round(time.Second))
-	fmt.Printf("Average speed: %.2f hotels/second\n", float64(processedCount)/duration.Seconds())
-}
+	fmt.Printf("Duration: %s\n", durationPhase1.Round(time.Second))
+	fmt.Printf("Average speed: %.2f hotels/second\n", float64(processedCount)/durationPhase1.Seconds())
 
-func processHotel(tx *sql.Tx, hotel helper.PackageHotelJSON,
-	getCityIDStmt, checkHotelExistStmt, insertHotelStmt *sql.Stmt) (int, error) {
+	// Phase 2: Migrasi dari td_hotel
+	fmt.Printf("\nPhase 2: Migrating Hotels from td_hotel Table\n")
+	fmt.Printf("==========================================\n")
 
-	// Validasi data hotel
-	if hotel.Name == "" {
-		return 0, fmt.Errorf("hotel name is empty")
+	// Get total hotels from td_hotel
+	var totalTdHotels int
+	err = prodExistingUmrahDB.QueryRow(`
+        SELECT COUNT(*) 
+        FROM td_hotel
+        WHERE soft_delete = false
+    `).Scan(&totalTdHotels)
+	if err != nil {
+		log.Fatal("Error counting td_hotels:", err)
 	}
-	if hotel.CityName == "" {
-		return 0, fmt.Errorf("city name is empty")
+
+	fmt.Printf("Found %d hotels to transfer from td_hotel\n", totalTdHotels)
+
+	// Progress bar untuk Phase 2
+	barPhase2 := progressbar.NewOptions(totalTdHotels,
+		progressbar.OptionEnableColorCodes(true),
+		progressbar.OptionShowCount(),
+		progressbar.OptionSetWidth(15),
+		progressbar.OptionSetDescription("[cyan][1/2][reset] Transferring td_hotels..."),
+		progressbar.OptionSetTheme(progressbar.Theme{
+			Saucer:        "[green]=[reset]",
+			SaucerHead:    "[green]>[reset]",
+			SaucerPadding: " ",
+			BarStart:      "[",
+			BarEnd:        "]",
+		}))
+
+	// Statistics untuk Phase 2
+	var (
+		processedTdCount int
+		insertedTdCount  int
+		skippedTdCount   int
+		errorTdCount     int
+	)
+
+	startTimeTd := time.Now()
+
+	// Begin transaction untuk Phase 2
+	txTd, err := devGeneralDB.Begin()
+	if err != nil {
+		log.Fatal("Error starting transaction for td_hotel:", err)
 	}
 
-	// Check if hotel already exists
-	var existingID int
-	err := checkHotelExistStmt.QueryRow(hotel.Name).Scan(&existingID)
-	if err != sql.ErrNoRows {
+	// Query untuk mengambil data dari td_hotel dengan city name
+	tdHotelRows, err := prodExistingUmrahDB.Query(`
+        SELECT 
+            h.name,
+            h.address,
+            h.rate,
+            h.logo,
+            h.created_at,
+            h.updated_at,
+            c.name as city_name
+        FROM td_hotel h
+        JOIN td_city c ON h.city_id = c.id
+        WHERE h.soft_delete = false
+    `)
+	if err != nil {
+		log.Fatal("Error querying td_hotel:", err)
+	}
+	defer tdHotelRows.Close()
+
+	// Process setiap hotel dari td_hotel
+	for tdHotelRows.Next() {
+		var (
+			name      string
+			address   string
+			rate      int
+			logo      string
+			createdAt time.Time
+			updatedAt time.Time
+			cityName  string
+		)
+
+		err := tdHotelRows.Scan(
+			&name,
+			&address,
+			&rate,
+			&logo,
+			&createdAt,
+			&updatedAt,
+			&cityName,
+		)
 		if err != nil {
-			return 0, fmt.Errorf("error checking hotel existence: %v", err)
+			log.Printf("Error scanning td_hotel row: %v", err)
+			errorTdCount++
+			barPhase2.Add(1)
+			continue
 		}
-		return 0, nil // Hotel already exists
+
+		// Check if hotel already exists
+		var existingID int
+		err = checkHotelExistStmt.QueryRow(name).Scan(&existingID)
+		if err != sql.ErrNoRows {
+			if err != nil {
+				log.Printf("Error checking hotel existence: %v", err)
+				errorTdCount++
+			} else {
+				skippedTdCount++
+			}
+			barPhase2.Add(1)
+			continue
+		}
+
+		// Insert new hotel
+		var newID int
+		err = insertHotelStmt.QueryRow(
+			name,        // name
+			address,     // address
+			cityName,    // city_name
+			1,           // city_id (default to 1)
+			rate,        // rating
+			logo,        // logo
+			createdAt,   // created_at
+			updatedAt,   // modified_at
+			"migration", // created_by
+			nil,         // modified_by
+		).Scan(&newID)
+
+		if err != nil {
+			log.Printf("Error inserting hotel: %v", err)
+			errorTdCount++
+			barPhase2.Add(1)
+			continue
+		}
+
+		insertedTdCount++
+		processedTdCount++
+		barPhase2.Add(1)
 	}
 
-	// Get correct city_id from location_city based on cityName
-	var cityID int
-	err = getCityIDStmt.QueryRow(hotel.CityName).Scan(&cityID)
+	// Commit transaction Phase 2
+	err = txTd.Commit()
 	if err != nil {
-		return 0, fmt.Errorf("error getting city ID for city '%s': %v", hotel.CityName, err)
+		log.Printf("Error committing td_hotel transaction: %v", err)
+		txTd.Rollback()
+		return
 	}
 
-	// Jika address kosong, gunakan default value
-	address := hotel.Address
-	if address == "" {
-		address = "Tidak Ada"
-	}
+	// Update progress bar untuk selesai
+	barPhase2.Finish()
 
-	// Insert new hotel with correct city_id
-	var newID int
-	err = insertHotelStmt.QueryRow(
-		hotel.Name,
-		address,
-		hotel.CityName,
-		cityID,
-		hotel.Rating,
-		hotel.Logo,
-		hotel.CreatedAt,
-		hotel.ModifiedAt,
-		"migration",
-		hotel.ModifiedBy,
-	).Scan(&newID)
-
+	// Standardisasi nama kota Mekah/Mekkah
+	updateMeccaResult, err := devGeneralDB.Exec(`
+		UPDATE hotel
+		SET city_name = "MAKKAH"
+		WHERE city_name = 'Mekkah'
+		OR city_name = 'Mekah'
+	`)
 	if err != nil {
-		return 0, fmt.Errorf("error inserting hotel: %v", err)
+		log.Printf("Error updating Mecca city names: %v", err)
 	}
 
-	return newID, nil
+	// Standardisasi nama kota Madinah
+	updateMadinahResult, err := devGeneralDB.Exec(`
+		UPDATE hotel
+		SET city_name = "MADINAH"
+		WHERE city_name = 'Madinah'
+	`)
+	if err != nil {
+		log.Printf("Error updating Madinah city names: %v", err)
+	}
+
+	meccaRowsAffected, _ := updateMeccaResult.RowsAffected()
+	madinahRowsAffected, _ := updateMadinahResult.RowsAffected()
+
+	fmt.Printf("\n[3/3] City name standardization completed!\n")
+	fmt.Printf("Standardized %d Mecca hotel records\n", meccaRowsAffected)
+	fmt.Printf("Standardized %d Madinah hotel records\n", madinahRowsAffected)
+
+	durationTd := time.Since(startTimeTd)
+
+	// Print summary untuk Phase 2
+	fmt.Printf("\nPhase 2 Migration Summary:\n")
+	fmt.Printf("------------------------\n")
+	fmt.Printf("Total td_hotels found: %d\n", totalTdHotels)
+	fmt.Printf("Successfully processed hotels: %d\n", processedTdCount)
+	fmt.Printf("Successfully inserted hotels: %d\n", insertedTdCount)
+	fmt.Printf("Skipped (already exist): %d\n", skippedTdCount)
+	fmt.Printf("Failed transfers: %d\n", errorTdCount)
+	fmt.Printf("\nPerformance Metrics:\n")
+	fmt.Printf("Duration: %s\n", durationTd.Round(time.Second))
+	fmt.Printf("Average speed: %.2f hotels/second\n", float64(processedTdCount)/durationTd.Seconds())
+
+	// Print overall summary
+	fmt.Printf("\nOverall Migration Summary:\n")
+	fmt.Printf("======================\n")
+	fmt.Printf("Total Phase 1 - Package Hotels: %d\n", processedCount)
+	fmt.Printf("Total Phase 2 - TD Hotels: %d\n", processedTdCount)
+	fmt.Printf("Total Hotels Processed: %d\n", processedCount+processedTdCount)
+	fmt.Printf("Total Hotels Inserted: %d\n", insertedCount+insertedTdCount)
+	fmt.Printf("Total Hotels Skipped: %d\n", skippedCount+skippedTdCount)
+	fmt.Printf("Total Errors: %d\n", errorCount+errorTdCount)
 }

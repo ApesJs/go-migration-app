@@ -157,6 +157,7 @@ func PackageService() {
 			priceDouble        float64
 			priceTriple        float64
 			priceQuad          float64
+			closed             int
 		)
 
 		// Scan data dari source database
@@ -166,7 +167,7 @@ func PackageService() {
 			&facility, &currency, &dpType, &dpAmount, &feeType,
 			&feeAmount, &softDelete, &createdAt, &updatedAt,
 			&departureDate, &arrivalDate, &priceDouble, &priceTriple,
-			&priceQuad,
+			&priceQuad, &closed,
 		)
 		if err != nil {
 			log.Printf("Error scanning row: %v", err)
@@ -174,6 +175,9 @@ func PackageService() {
 			bar.Add(1)
 			continue
 		}
+
+		// Menghitung released_at sebelum insert ke package_variant
+		releasedAt := departureDate.AddDate(0, 0, -closed)
 
 		// Get organization_instance_id
 		var (
@@ -406,7 +410,7 @@ func PackageService() {
 			int64(priceDouble),                 // price_double
 			int64(priceTriple),                 // price_triple
 			int64(priceQuad),                   // price_quad
-			updatedAt,                          // released_at
+			releasedAt,                         // released_at
 			true,                               // published
 			createdAt,                          // created_at
 			updatedAt,                          // modified_at
