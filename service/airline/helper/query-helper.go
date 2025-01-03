@@ -22,3 +22,49 @@ func CheckExistingAirlineStmt(db *sql.DB) (*sql.Stmt, error) {
         WHERE code = $1
     `)
 }
+
+// GetNewAirlineIDStmt gets new airline ID by code
+func GetNewAirlineIDStmt(db *sql.DB) (*sql.Stmt, error) {
+	return db.Prepare(`
+        SELECT id 
+        FROM airline 
+        WHERE code = $1
+    `)
+}
+
+// query-helper.go
+func UpdatePackageDepartureAirlineStmt(db *sql.DB) (*sql.Stmt, error) {
+	return db.Prepare(`
+        UPDATE package 
+        SET departure = jsonb_set(
+            jsonb_set(
+                departure,
+                '{airline,id}',
+                $1::text::jsonb,
+                false
+            ),
+            '{airlineId}',
+            $1::text::jsonb,
+            false
+        )
+        WHERE departure->'airline'->>'name' = $2
+    `)
+}
+
+func UpdatePackageArrivalAirlineStmt(db *sql.DB) (*sql.Stmt, error) {
+	return db.Prepare(`
+        UPDATE package 
+        SET arrival = jsonb_set(
+            jsonb_set(
+                arrival,
+                '{airline,id}',
+                $1::text::jsonb,
+                false
+            ),
+            '{airlineId}',
+            $1::text::jsonb,
+            false
+        )
+        WHERE arrival->'airline'->>'name' = $2
+    `)
+}
