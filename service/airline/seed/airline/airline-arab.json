@@ -30,5 +30,37 @@
   {
     "name": "Saudi Cargo",
     "code": "SV"
+  },
+  {
+    "name": "Etihad Airways",
+    "code": "EY"
+  },
+  {
+    "name": "Turkish Airlines",
+    "code": "TK"
+  },
+  {
+    "name": "Emirates Airlines",
+    "code": "EK"
+  },
+  {
+    "name": "Qatar Airways",
+    "code": "QR"
+  },
+  {
+    "name": "Egypt Air",
+    "code": "MS"
+  },
+  {
+    "name": "Oman Airlines",
+    "code": "OA"
+  },
+  {
+    "name": "Ethiopian Airlines",
+    "code": "ET"
+  },
+  {
+    "name": "Uzbekistan Airways",
+    "code": "HY"
   }
 ]

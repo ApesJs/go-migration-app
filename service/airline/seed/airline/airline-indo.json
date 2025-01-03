@@ -58,5 +58,13 @@
   {
     "name": "My Indo Airlines",
     "code": "2Y"
+  },
+  {
+    "name": "IndiGO",
+    "code": "6E"
+  },
+  {
+    "name": "Malaysia Airlines",
+    "code": "MH"
   }
 ]

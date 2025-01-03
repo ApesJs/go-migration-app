@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/ApesJs/go-migration-app/service/airport"
+	"github.com/ApesJs/go-migration-app/service/airline"
 	_ "github.com/lib/pq"
 )
 
@@ -16,5 +16,6 @@ func main() {
 	//service.OrganizationUserService()
 	//_package.PackageService()
 	//hotel.HotelService()
-	airport.AirportService()
+	//airport.AirportService()
+	airline.AirlineService()
 }
