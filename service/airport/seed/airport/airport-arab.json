@@ -3,70 +3,60 @@
       "name": "King Abdulaziz International Airport",
       "code": "JED",
       "city": "JEDDAH",
-      "location": "Makkah Province",
       "type": "International"
     },
     {
       "name": "King Khalid International Airport",
       "code": "RUH",
       "city": "RIYADH",
-      "location": "Riyadh Province",
       "type": "International"
     },
     {
       "name": "Prince Mohammed Bin Abdulaziz International Airport",
       "code": "MED",
-      "city": "MEDINA",
-      "location": "Medina Province",
+      "city": "MADINAH",
       "type": "International"
     },
     {
       "name": "King Fahd International Airport",
       "code": "DMM",
       "city": "DAMMAM",
-      "location": "Eastern Province",
       "type": "International"
     },
     {
       "name": "Prince Nayef Bin Abdulaziz Regional Airport",
       "code": "ELQ",
       "city": "BURAIDAH",
-      "location": "Al-Qassim Province",
       "type": "Regional"
     },
     {
       "name": "Abha International Airport",
       "code": "AHB",
       "city": "ABHA",
-      "location": "Asir Province",
       "type": "International"
     },
     {
       "name": "Prince Abdul Majeed bin Abdulaziz Airport",
       "code": "TUU",
       "city": "TABUK",
-      "location": "Tabuk Province",
       "type": "Domestic"
     },
     {
       "name": "Taif Regional Airport",
       "code": "TIF",
       "city": "TAIF",
-      "location": "Makkah Province",
       "type": "Regional"
     },
     {
       "name": "Yanbu Airport",
       "code": "YNB",
       "city": "YANBU",
-      "location": "Medina Province",
       "type": "International"
     },
     {
       "name": "Al-Ahsa International Airport",
       "code": "HOF",
       "city": "AL-AHSA",
-      "location": "Eastern Province",
       "type": "International"
     }
 ]
