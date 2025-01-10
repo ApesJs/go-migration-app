@@ -11,9 +11,13 @@ import (
 func OrganizationUserService() {
 	// Panggil Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	//DevIdentityDB := database.ConnectionDevIdentityDB()
+	//defer DevIdentityDB.Close()
+
+	LocalIdentityDB := database.ConnectionLocalIdentityDB()
+	defer LocalIdentityDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
@@ -51,21 +55,21 @@ func OrganizationUserService() {
 	defer rows.Close()
 
 	// Prepare statement untuk mengecek keberadaan organization
-	checkOrgStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
+	checkOrgStmt, err := LocalIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check organization statement:", err)
 	}
 	defer checkOrgStmt.Close()
 
 	// Prepare statement untuk mengecek keberadaan user
-	checkUserStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE id = $1`)
+	checkUserStmt, err := LocalIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check user statement:", err)
 	}
 	defer checkUserStmt.Close()
 
 	// Prepare statement untuk mengecek duplikasi
-	checkDuplicateStmt, err := devIdentityDB.Prepare(`
+	checkDuplicateStmt, err := LocalIdentityDB.Prepare(`
 		SELECT COUNT(*) FROM organization_user 
 		WHERE organization_id = $1 AND user_id = $2
 	`)
@@ -75,7 +79,7 @@ func OrganizationUserService() {
 	defer checkDuplicateStmt.Close()
 
 	// Prepare statement untuk insert
-	insertStmt, err := devIdentityDB.Prepare(`
+	insertStmt, err := LocalIdentityDB.Prepare(`
 		INSERT INTO organization_user (
 			organization_id, user_id, role,
 			created_at, modified_at,
@@ -100,7 +104,7 @@ func OrganizationUserService() {
 	)
 
 	// Begin transaction
-	tx, err := devIdentityDB.Begin()
+	tx, err := LocalIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

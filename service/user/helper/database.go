@@ -32,7 +32,7 @@ func CountTotalRecords(db *sql.DB) (totalRows int, totalTravelAgents int, err er
 		SELECT COUNT(*) 
 		FROM td_user u
 		JOIN td_travel_agent t ON u.id = t.user_id
-		WHERE u.role = 'user' AND u.soft_delete = 'false' AND t.code IS NOT NULL
+		WHERE u.role = 'user' AND u.soft_delete = 'false'
 	`).Scan(&totalTravelAgents)
 	if err != nil {
 		return 0, 0, fmt.Errorf("error counting travel agents: %v", err)

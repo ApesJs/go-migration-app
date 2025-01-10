@@ -10,9 +10,13 @@ import (
 func CheckingWukalaService() {
 	// Membuat koneksi database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	//DevIdentityDB := database.ConnectionDevIdentityDB()
+	//defer DevIdentityDB.Close()
+
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
 
 	waktuMulai := time.Now()
 	fmt.Println("Memulai proses pengecekan Wukala...")
@@ -35,7 +39,7 @@ func CheckingWukalaService() {
 
 	// Mengambil semua id dari tabel user dengan role wukala (target)
 	var targetUserIDs []string
-	targetRows, err := devIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
+	targetRows, err := localIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
 	if err != nil {
 		log.Fatal("Error saat mengambil data dari database target:", err)
 	}
@@ -98,7 +102,7 @@ func CheckingWukalaService() {
 		for i, id := range wukalaTambahan {
 			// Mengambil detail user untuk wukala tambahan
 			var nama, email string
-			err := devIdentityDB.QueryRow(`SELECT name, email FROM "user" WHERE id = $1`, id).Scan(&nama, &email)
+			err := localIdentityDB.QueryRow(`SELECT name, email FROM "user" WHERE id = $1`, id).Scan(&nama, &email)
 			if err != nil {
 				log.Printf("Error saat mengambil detail untuk user %s: %v", id, err)
 				continue

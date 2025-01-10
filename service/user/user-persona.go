@@ -16,27 +16,31 @@ type DuplicatePhoneInfo struct {
 
 func UserPersonaService() {
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	//devIdentitylDB := database.ConnectionDevIdentityDB()
+	//defer devIdentityDB.Close()
+
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
 
 	fmt.Println("Memulai proses transfer data persona user...")
 
 	alterTableQueries := []string{
-		`ALTER TABLE "user-persona" ADD COLUMN IF NOT EXISTS address TEXT`,
-		`ALTER TABLE "user-persona" ADD COLUMN IF NOT EXISTS job VARCHAR(255)`,
-		`ALTER TABLE "user-persona" ADD COLUMN IF NOT EXISTS dob TIMESTAMP WITH TIME ZONE`,
+		`ALTER TABLE "user_persona" ADD COLUMN IF NOT EXISTS address TEXT`,
+		`ALTER TABLE "user_persona" ADD COLUMN IF NOT EXISTS job VARCHAR(255)`,
+		`ALTER TABLE "user_persona" ADD COLUMN IF NOT EXISTS dob TIMESTAMP WITH TIME ZONE`,
 	}
 
 	for _, query := range alterTableQueries {
-		_, err := devIdentityDB.Exec(query)
+		_, err := localIdentityDB.Exec(query)
 		if err != nil {
 			log.Fatal("Error saat menambahkan kolom:", err)
 		}
 	}
 
 	var totalRows int
-	err := devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
+	err := localIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error saat menghitung total rows:", err)
 	}
@@ -58,24 +62,24 @@ func UserPersonaService() {
 	)
 
 	// Query untuk mengecek nomor telepon yang sudah ada
-	checkPhoneStmt, err := devIdentityDB.Prepare(`
-		SELECT id FROM "user-persona" WHERE phone_number = $1 LIMIT 1
+	checkPhoneStmt, err := localIdentityDB.Prepare(`
+		SELECT id FROM "user_persona" WHERE phone_number = $1 LIMIT 1
 	`)
 	if err != nil {
 		log.Fatal("Error preparing check phone statement:", err)
 	}
 	defer checkPhoneStmt.Close()
 
-	checkStmt, err := devIdentityDB.Prepare(`
-		SELECT COUNT(*) FROM "user-persona" WHERE id = $1
+	checkStmt, err := localIdentityDB.Prepare(`
+		SELECT COUNT(*) FROM "user_persona" WHERE id = $1
 	`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
 	defer checkStmt.Close()
 
-	insertStmt, err := devIdentityDB.Prepare(`
-		INSERT INTO "user-persona" (
+	insertStmt, err := localIdentityDB.Prepare(`
+		INSERT INTO "user_persona" (
 			id, phone_number, address, gender,
 			job, born, dob
 		) VALUES ($1, $2, $3, $4, $5, $6, $7)
@@ -85,8 +89,8 @@ func UserPersonaService() {
 	}
 	defer insertStmt.Close()
 
-	updateStmt, err := devIdentityDB.Prepare(`
-		UPDATE "user-persona" SET
+	updateStmt, err := localIdentityDB.Prepare(`
+		UPDATE "user_persona" SET
 			phone_number = $2,
 			address = $3,
 			gender = $4,
@@ -114,8 +118,8 @@ func UserPersonaService() {
 	usedPhoneNumbers := make(map[string]string)
 
 	// Pertama, ambil semua nomor telepon yang sudah ada di database target
-	existingPhones, err := devIdentityDB.Query(`
-		SELECT id, phone_number FROM "user-persona" WHERE phone_number IS NOT NULL
+	existingPhones, err := localIdentityDB.Query(`
+		SELECT id, phone_number FROM "user_persona" WHERE phone_number IS NOT NULL
 	`)
 	if err != nil {
 		log.Fatal("Error querying existing phone numbers:", err)
@@ -131,7 +135,7 @@ func UserPersonaService() {
 	}
 	existingPhones.Close()
 
-	rows, err := devIdentityDB.Query(`SELECT id FROM "user"`)
+	rows, err := localIdentityDB.Query(`SELECT id FROM "user"`)
 	if err != nil {
 		log.Fatal("Error querying user data:", err)
 	}

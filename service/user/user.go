@@ -13,14 +13,14 @@ func UserService() {
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
 	defer prodExistingUmrahDB.Close()
 
-	devIdentityDB := database.ConnectionDevIdentityDB()
-	defer devIdentityDB.Close()
+	//devIdentityDB := database.ConnectionDevIdentityDB()
+	//defer devIdentityDB.Close()
 
-	//localIdentityDB := database.ConnectionLocalIdentityDB()
-	//defer localIdentityDB.Close()
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
 
 	// Cek dan buat role wukala jika belum ada
-	err := helper.EnsureWukalaRole(devIdentityDB)
+	err := helper.EnsureWukalaRole(localIdentityDB)
 	if err != nil {
 		log.Fatal("Error ensuring wukala role:", err)
 	}
@@ -38,14 +38,14 @@ func UserService() {
 	bar := helper.CreateProgressBar(totalRows)
 
 	// Prepare statements
-	stmts, err := helper.PrepareStatements(prodExistingUmrahDB, devIdentityDB)
+	stmts, err := helper.PrepareStatements(prodExistingUmrahDB, localIdentityDB)
 	if err != nil {
 		log.Fatal("Error preparing statements:", err)
 	}
 	defer stmts.CloseAll()
 
 	// Begin transaction
-	tx, err := devIdentityDB.Begin()
+	tx, err := localIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

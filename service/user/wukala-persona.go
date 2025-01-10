@@ -17,27 +17,36 @@ type DuplicatePhoneInfoWukala struct {
 
 func WukalaPersonaService() error {
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devUmrahDB := database.ConnectionDevUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
-	defer devUmrahDB.Close()
+
+	prodUmrahDB := database.ConnectionProdUmrahDB()
+	defer prodUmrahDB.Close()
+
+	prodIdentityDB := database.ConnectionProdIdentityDB()
+	defer prodIdentityDB.Close()
+
+	//devUmrahDB := database.ConnectionDevUmrahDB()
+	//defer devUmrahDB.Close()
+
+	//devIdentityDB := database.ConnectionDevIdentityDB()
+	//defer devIdentityDB.Close()
 
 	//localIdentityDB := database.ConnectionLocalIdentityDB()
-	//localUmrahDB := database.ConnectionLocalUmrahDB()
 	//defer localIdentityDB.Close()
+
+	//localUmrahDB := database.ConnectionLocalUmrahDB()
 	//defer localUmrahDB.Close()
 
 	fmt.Println("Memulai proses transfer data persona wukala...")
 
 	// Start transactions for both target databases
-	identityTx, err := devIdentityDB.Begin()
+	identityTx, err := prodIdentityDB.Begin()
 	if err != nil {
 		return fmt.Errorf("error starting identity transaction: %v", err)
 	}
 	defer identityTx.Rollback()
 
-	umrahTx, err := devUmrahDB.Begin()
+	umrahTx, err := prodUmrahDB.Begin()
 	if err != nil {
 		return fmt.Errorf("error starting umrah transaction: %v", err)
 	}
@@ -70,7 +79,7 @@ func WukalaPersonaService() error {
 	}
 
 	var totalRows int
-	err = devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'wukala'`).Scan(&totalRows)
+	err = prodIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'wukala'`).Scan(&totalRows)
 	if err != nil {
 		return fmt.Errorf("error saat menghitung total rows: %v", err)
 	}
@@ -185,7 +194,7 @@ func WukalaPersonaService() error {
 		duplicatePhones = make([]DuplicatePhoneInfoWukala, 0)
 	)
 
-	rows, err := devIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
+	rows, err := prodIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
 	if err != nil {
 		return fmt.Errorf("error querying user data: %v", err)
 	}
@@ -233,7 +242,7 @@ func WukalaPersonaService() error {
 				account_bank, account_number, account_name,
 				address, city_id, approved_by, approved_at,
 				created_at, updated_at
-			FROM td_travel_agent WHERE user_id = $1 AND code IS NOT NULL
+			FROM td_travel_agent WHERE user_id = $1
 		`, userID).Scan(
 			&travelID, &phone, &desc, &code, &fee, &webVisit,
 			&activatedAt, &discount, &parentID, &feeType,

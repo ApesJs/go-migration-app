@@ -22,7 +22,7 @@ func GetOrganizationInstance(organizationID string, organizationInstanceID int) 
 	// Set headers
 	req.Header.Set("accept", "*/*")
 	req.Header.Set("x-organization-id", organizationID)
-	req.Header.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2Rldi5hcGkubW9zbGVtMTAxLmNvbSIsImlzcyI6IjEwMV9JZGVudGl0eV9Jc3N1ZXIiLCJpZCI6ImNkNTBjMjZhLTA4ODEtNDdkYS1hMjNmLTFiM2IyZGM3OGRiYyIsInJvbGUiOiJzdXBlcl9hZG1pbiIsInVzZXJuYW1lIjoiYXBlc2pzIiwiZW1haWwiOiJhc2VwamFlbnVkaW5zdXRhcmppQGdtYWlsLmNvbSIsImlhdCI6MTczNTUyMTY0NCwiZXhwIjoxNzM3MjU3MzMzfQ.9e6NDOFkMfbPTeLma9dXEI3cvoJiNZWHXXq5LkRzBDo")
+	req.Header.Set("Authorization", "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhdWQiOiJodHRwczovL2Rldi5hcGkubW9zbGVtMTAxLmNvbSIsImlzcyI6IjEwMV9JZGVudGl0eV9Jc3N1ZXIiLCJpZCI6ImNkNTBjMjZhLTA4ODEtNDdkYS1hMjNmLTFiM2IyZGM3OGRiYyIsInJvbGUiOiJzdXBlcl9hZG1pbiIsInVzZXJuYW1lIjoiYXBlc2pzIiwiZW1haWwiOiJhc2VwamFlbnVkaW5zdXRhcmppQGdtYWlsLmNvbSIsImlhdCI6MTczNjQxMjc2MywiZXhwIjoxNzM4MTQ4NDUyfQ.JWlmpTYJM7p608yY58RFjrWDa3iIK8oFCsRH-V-v2aU")
 
 	// Kirim request
 	resp, err := client.Do(req)

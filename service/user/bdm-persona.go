@@ -12,13 +12,17 @@ import (
 func BdmPersonaService() {
 	// Connect to databases
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	//devIdentityDB := database.ConnectionDevIdentityDB()
+	//defer devIdentityDB.Close()
+
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
 
 	// Count total BDM users
 	var totalBdmUsers int
-	err := devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'bdm'`).Scan(&totalBdmUsers)
+	err := localIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'bdm'`).Scan(&totalBdmUsers)
 	if err != nil {
 		log.Fatal("Error counting BDM users:", err)
 	}
@@ -41,14 +45,14 @@ func BdmPersonaService() {
 	)
 
 	// Get BDM users from target database
-	bdmRows, err := devIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'bdm'`)
+	bdmRows, err := localIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'bdm'`)
 	if err != nil {
 		log.Fatal("Error querying BDM users:", err)
 	}
 	defer bdmRows.Close()
 
 	// Begin transaction
-	tx, err := devIdentityDB.Begin()
+	tx, err := localIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
@@ -57,7 +61,7 @@ func BdmPersonaService() {
 	// Prepare statement for checking duplicates
 	checkStmt, err := tx.Prepare(`
 		SELECT COUNT(*) 
-		FROM "user-persona" 
+		FROM "user_persona" 
 		WHERE phone_number = $1 AND id != $2
 	`)
 	if err != nil {
@@ -67,7 +71,7 @@ func BdmPersonaService() {
 
 	// Prepare statement for insert/update
 	insertStmt, err := tx.Prepare(`
-		INSERT INTO "user-persona" (id, phone_number)
+		INSERT INTO "user_persona" (id, phone_number)
 		VALUES ($1, $2)
 		ON CONFLICT (id) DO UPDATE 
 		SET phone_number = $2

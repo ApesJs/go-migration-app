@@ -29,9 +29,13 @@ func createSlug(name string) string {
 func OrganizationService() {
 	// Panggil Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	//devIdentityDB := database.ConnectionDevIdentityDB()
+	//defer devIdentityDB.Close()
+
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
@@ -70,14 +74,14 @@ func OrganizationService() {
 	defer rows.Close()
 
 	// Prepare statement untuk mengecek duplikasi (hanya berdasarkan id)
-	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
+	checkStmt, err := localIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
 	defer checkStmt.Close()
 
 	// Prepare statement untuk insert
-	insertStmt, err := devIdentityDB.Prepare(`
+	insertStmt, err := localIdentityDB.Prepare(`
 		INSERT INTO organization (
 			id, name, slug, description, thumbnail,
 			is_active, deleted, created_at, modified_at,
@@ -103,7 +107,7 @@ func OrganizationService() {
 	)
 
 	// Begin transaction
-	tx, err := devIdentityDB.Begin()
+	tx, err := localIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}

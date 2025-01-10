@@ -15,12 +15,19 @@ import (
 func PackageService() {
 	// Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	//devUmrahDB := database.ConnectionLocalUmrahDB()
+	defer prodExistingUmrahDB.Close()
+
 	devUmrahDB := database.ConnectionDevUmrahDB()
+	defer devUmrahDB.Close()
+
 	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer devIdentityDB.Close()
-	defer prodExistingUmrahDB.Close()
-	defer devUmrahDB.Close()
+
+	//localUmrahDB := database.ConnectionLocalUmrahDB()
+	//defer localUmrahDB.Close()
+
+	//localdentityDB := database.ConnectionLocalIdentityDB()
+	//defer localdentityDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	totalRows, err := helper.TotalRows(prodExistingUmrahDB)

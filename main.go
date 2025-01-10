@@ -6,16 +6,17 @@ import (
 )
 
 func main() {
-	//service.BDMService()
+	//user.BDMService()
+	//user.BdmPersonaService()
 	//user.UserService()
 	user.WukalaPersonaService()
-	//service.BdmPersonaService()
-	//service.ChangeCityIDPersonaService()
-	//service.MakeUCService()
+	//user.UserPersonaService()
+	//user.CheckingWukalaService()
+	//user.MakeUCService()
 
-	//service.OrganizationService()
-	//service.OrganizationInstanceService()
-	//service.OrganizationUserService()
+	//travel.OrganizationService()
+	//travel.OrganizationInstanceService()
+	//travel.OrganizationUserService()
 
 	//_package.PackageService()
 	//hotel.HotelService()

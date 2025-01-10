@@ -170,3 +170,49 @@ func ConnectionProdExistingUmrahDB() *sql.DB {
 
 	return prodExistingUmrahDB
 }
+
+func ConnectionProdIdentityDB() *sql.DB {
+	config, err := configApp.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	prodIdentityConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.ProdIdentityDBHost, config.ProdIdentityDBPort, config.ProdIdentityDBUser, config.ProdIdentityDBPassword, config.ProdIdentityDBName)
+
+	prodIdentityDB, err := sql.Open("postgres", prodIdentityConnStr)
+	if err != nil {
+		log.Fatal("Error connecting to prod identity database:", err)
+	}
+
+	if err := prodIdentityDB.Ping(); err != nil {
+		log.Fatal("Error connecting to prod identity database:", err)
+	}
+
+	fmt.Println("Successfully connected to prod identity databases")
+
+	return prodIdentityDB
+}
+
+func ConnectionProdUmrahDB() *sql.DB {
+	config, err := configApp.LoadConfig()
+	if err != nil {
+		log.Fatalf("Failed to load configuration: %v", err)
+	}
+
+	prodUmrahConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
+		config.ProdUmrahDBHost, config.ProdUmrahDBPort, config.ProdUmrahDBUser, config.ProdUmrahDBPassword, config.ProdUmrahDBName)
+
+	prodUmrahDB, err := sql.Open("postgres", prodUmrahConnStr)
+	if err != nil {
+		log.Fatal("Error connecting to prod umrah database:", err)
+	}
+
+	if err := prodUmrahDB.Ping(); err != nil {
+		log.Fatal("Error connecting to prod umrah database:", err)
+	}
+
+	fmt.Println("Successfully connected to prod umrah databases")
+
+	return prodUmrahDB
+}

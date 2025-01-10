@@ -13,7 +13,6 @@ func PrepareStatements(sourceDB, targetDB *sql.DB) (*Statements, error) {
 			WHERE t.user_id = $1 
 			AND u.role = 'user' 
 			AND u.soft_delete = 'false'
-			AND t.code IS NOT NULL
     	)
 	`)
 	if err != nil {

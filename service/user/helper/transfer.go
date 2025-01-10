@@ -16,7 +16,7 @@ func TransferData(sourceDB *sql.DB, txStmts *TxStatements, bar *progressbar.Prog
 	// Query untuk mengambil data user
 	rows, err := sourceDB.Query(`
 		SELECT id, name, email, role, image, soft_delete, created_at, updated_at 
-		FROM td_user 
+		FROM td_user tu 
 		WHERE role = 'user' AND soft_delete = 'false'
 	`)
 	if err != nil {
@@ -26,7 +26,11 @@ func TransferData(sourceDB *sql.DB, txStmts *TxStatements, bar *progressbar.Prog
 
 	// Statement untuk cek travel agent
 	checkTravelAgentStmt, err := sourceDB.Prepare(`
-		SELECT EXISTS(SELECT 1 FROM td_travel_agent WHERE user_id = $1)
+		SELECT EXISTS(
+			SELECT 1 
+			FROM td_travel_agent t
+			WHERE t.user_id = $1 
+		)
 	`)
 	if err != nil {
 		log.Fatal("Error preparing travel agent check statement:", err)

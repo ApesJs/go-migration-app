@@ -42,6 +42,16 @@ type Config struct {
 	ProdExistingUmrahDBName     string
 	ProdExistingUmrahDBUser     string
 	ProdExistingUmrahDBPassword string
+	ProdIdentityDBHost          string
+	ProdIdentityDBPort          string
+	ProdIdentityDBName          string
+	ProdIdentityDBUser          string
+	ProdIdentityDBPassword      string
+	ProdUmrahDBHost             string
+	ProdUmrahDBPort             string
+	ProdUmrahDBName             string
+	ProdUmrahDBUser             string
+	ProdUmrahDBPassword         string
 }
 
 func LoadConfig() (Config, error) {
@@ -85,6 +95,16 @@ func LoadConfig() (Config, error) {
 		ProdExistingUmrahDBName:     os.Getenv("PROD_EXISTING_UMRAH_DB_NAME"),
 		ProdExistingUmrahDBUser:     os.Getenv("PROD_EXISTING_UMRAH_DB_USER"),
 		ProdExistingUmrahDBPassword: os.Getenv("PROD_EXISTING_UMRAH_DB_PASSWORD"),
+		ProdIdentityDBHost:          os.Getenv("PROD_IDENTITY_DB_HOST"),
+		ProdIdentityDBPort:          os.Getenv("PROD_IDENTITY_DB_PORT"),
+		ProdIdentityDBName:          os.Getenv("PROD_IDENTITY_DB_NAME"),
+		ProdIdentityDBUser:          os.Getenv("PROD_IDENTITY_DB_USER"),
+		ProdIdentityDBPassword:      os.Getenv("PROD_IDENTITY_DB_PASSWORD"),
+		ProdUmrahDBHost:             os.Getenv("PROD_UMRAH_DB_HOST"),
+		ProdUmrahDBPort:             os.Getenv("PROD_UMRAH_DB_PORT"),
+		ProdUmrahDBName:             os.Getenv("PROD_UMRAH_DB_NAME"),
+		ProdUmrahDBUser:             os.Getenv("PROD_UMRAH_DB_USER"),
+		ProdUmrahDBPassword:         os.Getenv("PROD_UMRAH_DB_PASSWORD"),
 	}
 
 	// Validasi konfigurasi
@@ -94,6 +114,8 @@ func LoadConfig() (Config, error) {
 		config.DevUmrahDBName == "" || config.DevUmrahDBUser == "" || config.DevUmrahDBPassword == "" ||
 		config.DevGeneralDBName == "" || config.DevGeneralDBUser == "" || config.DevGeneralDBPassword == "" ||
 		config.ProdExistingUmrahDBName == "" || config.ProdExistingUmrahDBUser == "" || config.ProdExistingUmrahDBPassword == "" ||
+		config.ProdIdentityDBName == "" || config.ProdIdentityDBUser == "" || config.ProdIdentityDBPassword == "" ||
+		config.ProdUmrahDBName == "" || config.ProdUmrahDBUser == "" || config.ProdUmrahDBPassword == "" ||
 		config.DevIdentityDBName == "" || config.DevIdentityDBUser == "" || config.DevIdentityDBPassword == "" {
 		return Config{}, fmt.Errorf("missing required environment variables")
 	}

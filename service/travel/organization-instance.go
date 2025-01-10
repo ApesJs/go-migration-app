@@ -2,6 +2,7 @@ package travel
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"github.com/ApesJs/go-migration-app/database"
 	"github.com/schollz/progressbar/v3"
@@ -9,16 +10,92 @@ import (
 	"time"
 )
 
+// Struktur untuk legal information
+type LegalInfo struct {
+	PIHK string `json:"pihk,omitempty"`
+	PPIU string `json:"ppiu,omitempty"`
+}
+
+// Tambahkan fungsi ini di package yang sama
+func ListMissingRdaIds() {
+	// Koneksi database
+	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
+	defer prodExistingUmrahDB.Close()
+
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
+
+	// Ambil semua rda_id dari td_travel
+	rows, err := prodExistingUmrahDB.Query(`
+        SELECT DISTINCT rda_id
+        FROM td_travel
+        WHERE rda_id IS NOT NULL
+    `)
+	if err != nil {
+		log.Fatal("Error saat query rda_id:", err)
+	}
+	defer rows.Close()
+
+	// Prepare statement untuk cek user
+	checkUserStmt, err := localIdentityDB.Prepare(`
+        SELECT COUNT(*) 
+        FROM "user" 
+        WHERE id = $1
+    `)
+	if err != nil {
+		log.Fatal("Error saat prepare statement:", err)
+	}
+	defer checkUserStmt.Close()
+
+	fmt.Println("\nDaftar RDA ID yang tidak ditemukan di tabel user:")
+	fmt.Println("-----------------------------------------------")
+
+	var (
+		rdaID        string
+		missingCount int
+		totalCount   int
+	)
+
+	for rows.Next() {
+		err := rows.Scan(&rdaID)
+		if err != nil {
+			log.Printf("Error saat scan rda_id: %v", err)
+			continue
+		}
+
+		totalCount++
+
+		// Cek apakah ada di tabel user
+		var count int
+		err = checkUserStmt.QueryRow(rdaID).Scan(&count)
+		if err != nil {
+			log.Printf("Error saat cek user: %v", err)
+			continue
+		}
+
+		if count == 0 {
+			missingCount++
+			fmt.Printf("%d. %s\n", missingCount, rdaID)
+		}
+	}
+
+	fmt.Printf("\nRingkasan:\n")
+	fmt.Printf("Total RDA ID yang dicek: %d\n", totalCount)
+	fmt.Printf("RDA ID yang tidak ditemukan: %d\n", missingCount)
+	fmt.Printf("Persentase tidak ditemukan: %.2f%%\n", float64(missingCount)/float64(totalCount)*100)
+}
+
 func OrganizationInstanceService() {
 	// Panggil Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	localIdentityDB := database.ConnectionLocalIdentityDB()
+	defer localIdentityDB.Close()
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err := prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM td_travel").Scan(&totalRows)
+	err := prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM td_travel WHERE rda_id IS NOT NULL").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
@@ -50,6 +127,7 @@ func OrganizationInstanceService() {
 			fee_type, fee_amount, ppiu, pihk, is_consultation,
 			city_id, "desc"
 		FROM td_travel
+		WHERE rda_id IS NOT NULL
 	`)
 	if err != nil {
 		log.Fatal("Error querying source database:", err)
@@ -57,21 +135,21 @@ func OrganizationInstanceService() {
 	defer rows.Close()
 
 	// Prepare statement untuk mengecek duplikasi (berdasarkan email karena unique)
-	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization_instance WHERE email = $1`)
+	checkStmt, err := localIdentityDB.Prepare(`SELECT COUNT(*) FROM organization_instance WHERE email = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
 	defer checkStmt.Close()
 
 	// Prepare statement untuk mengecek keberadaan organization
-	checkOrgStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
+	checkOrgStmt, err := localIdentityDB.Prepare(`SELECT COUNT(*) FROM organization WHERE id = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check organization statement:", err)
 	}
 	defer checkOrgStmt.Close()
 
 	// Prepare statement untuk insert
-	insertStmt, err := devIdentityDB.Prepare(`
+	insertStmt, err := localIdentityDB.Prepare(`
 		INSERT INTO organization_instance (
 			organization_id, type, name, slug, address,
 			country_id, province_id, city_id, is_active,
@@ -81,8 +159,7 @@ func OrganizationInstanceService() {
 			bank_account_name, pic_name, pic_phone,
 			email, deleted, tagline,
 			action_profile, action_package, own_guide,
-			fee_type, fee_amount, ppiu,
-			pihk, is_consultation, description
+			fee_type, fee_amount, is_consultation, description
 		) VALUES (
 			$1, $2, $3, $4, $5,
 			$6, $7, $8, $9,
@@ -93,7 +170,7 @@ func OrganizationInstanceService() {
 			$22, $23, $24,
 			$25, $26, $27,
 			$28, $29, $30,
-			$31, $32, $33
+			$31
 		)
 	`)
 	if err != nil {
@@ -111,7 +188,7 @@ func OrganizationInstanceService() {
 	)
 
 	// Begin transaction
-	tx, err := devIdentityDB.Begin()
+	tx, err := localIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
@@ -222,54 +299,58 @@ func OrganizationInstanceService() {
 			bdmID = nil
 		}
 
-		// Handle city_id
-		//var finalCityID interface{}
-		//if cityID.Valid {
-		//	finalCityID = cityID.String
-		//} else {
-		//	finalCityID = "9999" // Default value jika NULL
-		//}
-
 		// Generate slug dari nama
 		slug := createSlug(name)
 		generatedSlugs = append(generatedSlugs, fmt.Sprintf("%s -> %s", name, slug))
 
+		// Buat legal information JSON
+		legalInfo := LegalInfo{
+			PIHK: pihk.String,
+			PPIU: ppiu.String,
+		}
+
+		// Marshal ke JSON
+		legalInfoJSON, err := json.Marshal(legalInfo)
+		if err != nil {
+			log.Printf("Error marshaling legal information: %v", err)
+			errorCount++
+			bar.Add(1)
+			continue
+		}
+
 		// Insert ke target database
 		_, err = txInsertStmt.Exec(
-			organizationID, // organization_id
-			"travel",       // type
-			name,           // name
-			slug,           // slug
-			address.String, // address
-			"360",          // country_id (default)
-			"31",
-			"3173", // province_id (default)
-			//finalCityID,               // city_id (dari source)
-			isActive,                  // is_active
-			`{"status": "belum ada"}`, // legal_information
-			createdAt,                 // created_at
-			updatedAt,                 // modified_at
-			"migration",               // created_by
-			image.String,              // thumbnail
-			phone.String,              // phone_number
-			bdmID,                     // bdm_id
-			xenditChannel.String,      // bank_channel
-			xenditAccNumber.String,    // bank_account_number
-			xenditAccName.String,      // bank_account_name
-			picName.String,            // pic_name
-			picPhone.String,           // pic_phone
-			email.String,              // email
-			softDelete,                // deleted
-			tagline.String,            // tagline
-			actionProfile,             // action_profile
-			actionPackage,             // action_package
-			ownGuide,                  // own_guide
-			feeType.String,            // fee_type
-			feeAmount,                 // fee_amount
-			ppiu.String,               // ppiu
-			pihk.String,               // pihk
-			isConsultation,            // is_consultation
-			description,
+			organizationID,         // organization_id
+			"travel",               // type
+			name,                   // name
+			slug,                   // slug
+			address.String,         // address
+			"360",                  // country_id (default)
+			"31",                   // province_id (default)
+			"3173",                 // city_id (default)
+			isActive,               // is_active
+			string(legalInfoJSON),  // legal_information
+			createdAt,              // created_at
+			updatedAt,              // modified_at
+			"migration",            // created_by
+			image.String,           // thumbnail
+			phone.String,           // phone_number
+			bdmID,                  // bdm_id
+			xenditChannel.String,   // bank_channel
+			xenditAccNumber.String, // bank_account_number
+			xenditAccName.String,   // bank_account_name
+			picName.String,         // pic_name
+			picPhone.String,        // pic_phone
+			email.String,           // email
+			softDelete,             // deleted
+			tagline.String,         // tagline
+			actionProfile,          // action_profile
+			actionPackage,          // action_package
+			ownGuide,               // own_guide
+			feeType.String,         // fee_type
+			feeAmount,              // fee_amount
+			isConsultation,         // is_consultation
+			description.String,     // description
 		)
 
 		if err != nil {

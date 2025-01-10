@@ -12,9 +12,16 @@ import (
 func BDMService() {
 	//Panggil Koneksi Database
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
-	devIdentityDB := database.ConnectionDevIdentityDB()
 	defer prodExistingUmrahDB.Close()
-	defer devIdentityDB.Close()
+
+	prodIdentityDB := database.ConnectionProdIdentityDB()
+	defer prodIdentityDB.Close()
+
+	//devIdentityDB := database.ConnectionDevIdentityDB()
+	//defer devIdentityDB.Close()
+
+	//localIdentityDB := database.ConnectionLocalIdentityDB()
+	//defer localIdentityDB.Close()
 
 	// Konstanta untuk role
 	const (
@@ -23,26 +30,26 @@ func BDMService() {
 	)
 
 	// Pertama, periksa apakah role 'bdm' sudah ada di tabel role
-	var roleExists bool
-	err := devIdentityDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, roleSlug).Scan(&roleExists)
-	if err != nil {
-		log.Fatal("Error checking role existence:", err)
-	}
+	//var roleExists bool
+	//err := prodIdentityDB.QueryRow(`SELECT EXISTS(SELECT 1 FROM "role" WHERE slug = $1)`, roleSlug).Scan(&roleExists)
+	//if err != nil {
+	//	log.Fatal("Error checking role existence:", err)
+	//}
 
 	// Jika role belum ada, insert role terlebih dahulu
-	if !roleExists {
-		_, err = devIdentityDB.Exec(`INSERT INTO "role" (name, slug) 
-							   VALUES ($1, $2)`,
-			roleName, roleSlug)
-		if err != nil {
-			log.Fatal("Error inserting role:", err)
-		}
-		fmt.Printf("Created role with name '%s' and slug '%s'\n", roleName, roleSlug)
-	}
+	//if !roleExists {
+	//	_, err = prodIdentityDB.Exec(`INSERT INTO "role" (name, slug)
+	//						   VALUES ($1, $2)`,
+	//		roleName, roleSlug)
+	//	if err != nil {
+	//		log.Fatal("Error inserting role:", err)
+	//	}
+	//	fmt.Printf("Created role with name '%s' and slug '%s'\n", roleName, roleSlug)
+	//}
 
 	// Menghitung total records yang akan ditransfer
 	var totalRows int
-	err = prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM tr_rda").Scan(&totalRows)
+	err := prodExistingUmrahDB.QueryRow("SELECT COUNT(*) FROM tr_rda").Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error counting rows:", err)
 	}
@@ -77,7 +84,7 @@ func BDMService() {
 	}(rows)
 
 	// Prepare statement untuk mengecek duplikasi
-	checkStmt, err := devIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
+	checkStmt, err := prodIdentityDB.Prepare(`SELECT COUNT(*) FROM "user" WHERE email = $1`)
 	if err != nil {
 		log.Fatal("Error preparing check statement:", err)
 	}
@@ -89,7 +96,7 @@ func BDMService() {
 	}(checkStmt)
 
 	// Prepare statement untuk insert dengan role slug
-	insertStmt, err := devIdentityDB.Prepare(`
+	insertStmt, err := prodIdentityDB.Prepare(`
 		INSERT INTO "user" (
 			id, name, username, email, role,
 			is_active, email_verified,
@@ -101,7 +108,7 @@ func BDMService() {
 			true, false,
 			null, null, null,
 			false, $6, $7,
-			null, null
+			'migration', null
 		)
 	`)
 	if err != nil {
@@ -117,7 +124,7 @@ func BDMService() {
 	)
 
 	// Begin transaction
-	tx, err := devIdentityDB.Begin()
+	tx, err := prodIdentityDB.Begin()
 	if err != nil {
 		log.Fatal("Error starting transaction:", err)
 	}
