@@ -14,7 +14,7 @@ func ConnectionLocalIdentityDB() *sql.DB {
 	}
 
 	localIdentityConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.LocalIdentityDBHost, config.LocalIdentityDBPort, config.LocalIdentityDBUser, config.LocalIdentityDBPassword, config.LocalIdentityDBName)
+		config.LocalDBHost, config.LocalDBPort, config.LocalDBUser, config.LocalDBPassword, config.LocalIdentityDBName)
 
 	LocalIdentityDB, err := sql.Open("postgres", localIdentityConnStr)
 	if err != nil {
@@ -37,7 +37,7 @@ func ConnectionLocalUmrahDB() *sql.DB {
 	}
 
 	localUmrahConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.LocalUmrahDBHost, config.LocalUmrahDBPort, config.LocalUmrahDBUser, config.LocalUmrahDBPassword, config.LocalUmrahDBName)
+		config.LocalDBHost, config.LocalDBPort, config.LocalDBUser, config.LocalDBPassword, config.LocalUmrahDBName)
 
 	LocalUmrahDB, err := sql.Open("postgres", localUmrahConnStr)
 	if err != nil {
@@ -60,7 +60,7 @@ func ConnectionLocalGeneralDB() *sql.DB {
 	}
 
 	localGeneralConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.LocalGeneralDBHost, config.LocalGeneralDBPort, config.LocalGeneralDBUser, config.LocalGeneralDBPassword, config.LocalGeneralDBName)
+		config.LocalDBHost, config.LocalDBPort, config.LocalDBUser, config.LocalDBPassword, config.LocalGeneralDBName)
 
 	LocalGeneralDB, err := sql.Open("postgres", localGeneralConnStr)
 	if err != nil {
@@ -80,12 +80,12 @@ func ConnectionDevIdentityDB() *sql.DB {
 	// Load konfigurasi dari file .env
 	config, err := configApp.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("Failed to load configuration ConnectionDevIdentityDB: %v", err)
 	}
 
 	// Koneksi ke database sumber dan target (kode koneksi tetap sama)
 	devIdentityConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.DevIdentityDBHost, config.DevIdentityDBPort, config.DevIdentityDBUser, config.DevIdentityDBPassword, config.DevIdentityDBName)
+		config.DevDBHost, config.DevDBPort, config.DevDBUser, config.DevDBPassword, config.DevIdentityDBName)
 
 	devIdentityDB, err := sql.Open("postgres", devIdentityConnStr)
 	if err != nil {
@@ -105,11 +105,11 @@ func ConnectionDevIdentityDB() *sql.DB {
 func ConnectionDevUmrahDB() *sql.DB {
 	config, err := configApp.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("Failed to load configuration ConnectionDevUmrahDB: %v", err)
 	}
 
 	devUmrahConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.DevUmrahDBHost, config.DevUmrahDBPort, config.DevUmrahDBUser, config.DevUmrahDBPassword, config.DevUmrahDBName)
+		config.DevDBHost, config.DevDBPort, config.DevDBUser, config.DevDBPassword, config.DevUmrahDBName)
 
 	devUmrahDB, err := sql.Open("postgres", devUmrahConnStr)
 	if err != nil {
@@ -132,7 +132,7 @@ func ConnectionDevGeneralDB() *sql.DB {
 	}
 
 	devGeneralConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.DevGeneralDBHost, config.DevGeneralDBPort, config.DevGeneralDBUser, config.DevGeneralDBPassword, config.DevGeneralDBName)
+		config.DevDBHost, config.DevDBPort, config.DevDBUser, config.DevDBPassword, config.DevGeneralDBName)
 
 	devGeneralDB, err := sql.Open("postgres", devGeneralConnStr)
 	if err != nil {
@@ -151,11 +151,11 @@ func ConnectionDevGeneralDB() *sql.DB {
 func ConnectionProdExistingUmrahDB() *sql.DB {
 	config, err := configApp.LoadConfig()
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("Failed to load configuration ConnectionProdExistingUmrahDB: %v", err)
 	}
 
 	prodExistingUmrahConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.ProdExistingUmrahDBHost, config.ProdExistingUmrahDBPort, config.ProdExistingUmrahDBUser, config.ProdExistingUmrahDBPassword, config.ProdExistingUmrahDBName)
+		config.ProdExistingDBHost, config.ProdExistingDBPort, config.ProdExistingDBUser, config.ProdExistingDBPassword, config.ProdExistingDBName)
 
 	prodExistingUmrahDB, err := sql.Open("postgres", prodExistingUmrahConnStr)
 	if err != nil {
@@ -178,7 +178,7 @@ func ConnectionProdIdentityDB() *sql.DB {
 	}
 
 	prodIdentityConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.ProdIdentityDBHost, config.ProdIdentityDBPort, config.ProdIdentityDBUser, config.ProdIdentityDBPassword, config.ProdIdentityDBName)
+		config.ProdDBHost, config.ProdDBPort, config.ProdDBUser, config.ProdDBPassword, config.ProdIdentityDBName)
 
 	prodIdentityDB, err := sql.Open("postgres", prodIdentityConnStr)
 	if err != nil {
@@ -201,7 +201,7 @@ func ConnectionProdUmrahDB() *sql.DB {
 	}
 
 	prodUmrahConnStr := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
-		config.ProdUmrahDBHost, config.ProdUmrahDBPort, config.ProdUmrahDBUser, config.ProdUmrahDBPassword, config.ProdUmrahDBName)
+		config.ProdDBHost, config.ProdDBPort, config.ProdDBUser, config.ProdDBPassword, config.ProdUmrahDBName)
 
 	prodUmrahDB, err := sql.Open("postgres", prodUmrahConnStr)
 	if err != nil {

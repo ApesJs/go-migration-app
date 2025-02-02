@@ -18,11 +18,14 @@ func UserPersonaService() {
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
 	defer prodExistingUmrahDB.Close()
 
+	prodIdentityDB := database.ConnectionProdIdentityDB()
+	defer prodIdentityDB.Close()
+
 	//devIdentitylDB := database.ConnectionDevIdentityDB()
 	//defer devIdentityDB.Close()
 
-	localIdentityDB := database.ConnectionLocalIdentityDB()
-	defer localIdentityDB.Close()
+	//localIdentityDB := database.ConnectionLocalIdentityDB()
+	//defer localIdentityDB.Close()
 
 	fmt.Println("Memulai proses transfer data persona user...")
 
@@ -33,14 +36,14 @@ func UserPersonaService() {
 	}
 
 	for _, query := range alterTableQueries {
-		_, err := localIdentityDB.Exec(query)
+		_, err := prodIdentityDB.Exec(query)
 		if err != nil {
 			log.Fatal("Error saat menambahkan kolom:", err)
 		}
 	}
 
 	var totalRows int
-	err := localIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
+	err := prodIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user"`).Scan(&totalRows)
 	if err != nil {
 		log.Fatal("Error saat menghitung total rows:", err)
 	}
@@ -62,7 +65,7 @@ func UserPersonaService() {
 	)
 
 	// Query untuk mengecek nomor telepon yang sudah ada
-	checkPhoneStmt, err := localIdentityDB.Prepare(`
+	checkPhoneStmt, err := prodIdentityDB.Prepare(`
 		SELECT id FROM "user_persona" WHERE phone_number = $1 LIMIT 1
 	`)
 	if err != nil {
@@ -70,7 +73,7 @@ func UserPersonaService() {
 	}
 	defer checkPhoneStmt.Close()
 
-	checkStmt, err := localIdentityDB.Prepare(`
+	checkStmt, err := prodIdentityDB.Prepare(`
 		SELECT COUNT(*) FROM "user_persona" WHERE id = $1
 	`)
 	if err != nil {
@@ -78,7 +81,7 @@ func UserPersonaService() {
 	}
 	defer checkStmt.Close()
 
-	insertStmt, err := localIdentityDB.Prepare(`
+	insertStmt, err := prodIdentityDB.Prepare(`
 		INSERT INTO "user_persona" (
 			id, phone_number, address, gender,
 			job, born, dob
@@ -89,7 +92,7 @@ func UserPersonaService() {
 	}
 	defer insertStmt.Close()
 
-	updateStmt, err := localIdentityDB.Prepare(`
+	updateStmt, err := prodIdentityDB.Prepare(`
 		UPDATE "user_persona" SET
 			phone_number = $2,
 			address = $3,
@@ -118,7 +121,7 @@ func UserPersonaService() {
 	usedPhoneNumbers := make(map[string]string)
 
 	// Pertama, ambil semua nomor telepon yang sudah ada di database target
-	existingPhones, err := localIdentityDB.Query(`
+	existingPhones, err := prodIdentityDB.Query(`
 		SELECT id, phone_number FROM "user_persona" WHERE phone_number IS NOT NULL
 	`)
 	if err != nil {
@@ -135,7 +138,7 @@ func UserPersonaService() {
 	}
 	existingPhones.Close()
 
-	rows, err := localIdentityDB.Query(`SELECT id FROM "user"`)
+	rows, err := prodIdentityDB.Query(`SELECT id FROM "user"`)
 	if err != nil {
 		log.Fatal("Error querying user data:", err)
 	}

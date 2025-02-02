@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ApesJs/go-migration-app/database"
 	"github.com/schollz/progressbar/v3"
+	"log"
 	"math"
 	"strings"
 	"time"
@@ -15,21 +16,21 @@ type DuplicatePhoneInfoWukala struct {
 	PhoneNumber string
 }
 
-func WukalaPersonaService() error {
+func WukalaPersonaService() {
 	prodExistingUmrahDB := database.ConnectionProdExistingUmrahDB()
 	defer prodExistingUmrahDB.Close()
 
-	prodUmrahDB := database.ConnectionProdUmrahDB()
-	defer prodUmrahDB.Close()
-
-	prodIdentityDB := database.ConnectionProdIdentityDB()
-	defer prodIdentityDB.Close()
-
-	//devUmrahDB := database.ConnectionDevUmrahDB()
+	//devUmrahDB := database.ConnectionProdUmrahDB()
 	//defer devUmrahDB.Close()
 
-	//devIdentityDB := database.ConnectionDevIdentityDB()
+	//devIdentityDB := database.ConnectionProdIdentityDB()
 	//defer devIdentityDB.Close()
+
+	devUmrahDB := database.ConnectionDevUmrahDB()
+	defer devUmrahDB.Close()
+
+	devIdentityDB := database.ConnectionDevIdentityDB()
+	defer devIdentityDB.Close()
 
 	//localIdentityDB := database.ConnectionLocalIdentityDB()
 	//defer localIdentityDB.Close()
@@ -40,15 +41,15 @@ func WukalaPersonaService() error {
 	fmt.Println("Memulai proses transfer data persona wukala...")
 
 	// Start transactions for both target databases
-	identityTx, err := prodIdentityDB.Begin()
+	identityTx, err := devIdentityDB.Begin()
 	if err != nil {
-		return fmt.Errorf("error starting identity transaction: %v", err)
+		log.Fatalf("error starting identity transaction: %v", err)
 	}
 	defer identityTx.Rollback()
 
-	umrahTx, err := prodUmrahDB.Begin()
+	umrahTx, err := devUmrahDB.Begin()
 	if err != nil {
-		return fmt.Errorf("error starting umrah transaction: %v", err)
+		log.Fatalf("error starting umrah transaction: %v", err)
 	}
 	defer umrahTx.Rollback()
 
@@ -74,14 +75,14 @@ func WukalaPersonaService() error {
 	for _, query := range alterTableQueries {
 		_, err := identityTx.Exec(query)
 		if err != nil {
-			return fmt.Errorf("error saat menambahkan kolom: %v", err)
+			log.Fatalf("error saat menambahkan kolom: %v", err)
 		}
 	}
 
 	var totalRows int
-	err = prodIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'wukala'`).Scan(&totalRows)
+	err = devIdentityDB.QueryRow(`SELECT COUNT(*) FROM "user" WHERE role = 'wukala'`).Scan(&totalRows)
 	if err != nil {
-		return fmt.Errorf("error saat menghitung total rows: %v", err)
+		log.Fatalf("error saat menghitung total rows: %v", err)
 	}
 
 	fmt.Printf("Total wukala yang akan diproses: %d\n", totalRows)
@@ -105,15 +106,24 @@ func WukalaPersonaService() error {
 		SELECT COUNT(*) FROM "user_persona" WHERE id = $1
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing check persona statement: %v", err)
+		log.Fatalf("error preparing check persona statement: %v", err)
 	}
 	defer checkPersonaStmt.Close()
+
+	// Tambahkan fungsi untuk mengecek duplikasi code
+	checkCodeStmt, err := identityTx.Prepare(`
+    SELECT COUNT(*) FROM "user_persona" WHERE code = $1 AND id != $2
+`)
+	if err != nil {
+		log.Fatalf("error preparing check code statement: %v", err)
+	}
+	defer checkCodeStmt.Close()
 
 	checkPhoneStmt, err := identityTx.Prepare(`
 		SELECT COUNT(*) FROM "user_persona" WHERE phone_number = $1 AND id != $2
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing check phone statement: %v", err)
+		log.Fatalf("error preparing check phone statement: %v", err)
 	}
 	defer checkPhoneStmt.Close()
 
@@ -123,14 +133,16 @@ func WukalaPersonaService() error {
 			web_visit, activated_at, parent_id,
 			bdm_user_id, alias, nik, instagram,
 			account_bank, account_number, account_name,
-			address, city_id, approved_by, approved_at
+			address, city_id, approved_by, approved_at,
+			code, fee_type, fee, discount_type, discount
 		) VALUES (
 			$1, $2, $3, $4, $5, $6, $7, $8, $9,
-			$10, $11, $12, $13, $14, $15, $16, $17, $18
+			$10, $11, $12, $13, $14, $15, $16, $17, $18,
+			NULLIF($19, ''), $20, $21, $22, $23
 		)
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing insert persona statement: %v", err)
+		log.Fatalf("error preparing insert persona statement: %v", err)
 	}
 	defer insertPersonaStmt.Close()
 
@@ -141,8 +153,8 @@ func WukalaPersonaService() error {
 			"desc" = $4,
 			web_visit = $5,
 			activated_at = $6,
-			parent_id = CASE WHEN $7::UUID IS NULL THEN parent_id ELSE $7::UUID END,
-			bdm_user_id = CASE WHEN $8::UUID IS NULL THEN bdm_user_id ELSE $8::UUID END,
+			parent_id = $7,
+			bdm_user_id = $8,
 			alias = $9,
 			nik = $10,
 			instagram = $11,
@@ -150,13 +162,18 @@ func WukalaPersonaService() error {
 			account_number = $13,
 			account_name = $14,
 			address = $15,
-			city_id = CASE WHEN $16::UUID IS NULL THEN city_id ELSE $16::UUID END,
+			city_id = $16,
 			approved_by = CASE WHEN $17::UUID IS NULL THEN approved_by ELSE $17::UUID END,
-			approved_at = $18
+			approved_at = $18,
+			code = NULLIF($19, ''),
+			fee_type = $20,
+			fee = $21,
+			discount_type = $22,
+			discount = $23
 		WHERE id = $1
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing update persona statement: %v", err)
+		log.Fatalf("error preparing update persona statement: %v", err)
 	}
 	defer updatePersonaStmt.Close()
 
@@ -165,7 +182,7 @@ func WukalaPersonaService() error {
 		SELECT COUNT(*) FROM "wukala_setting" WHERE referral_code = $1
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing check setting statement: %v", err)
+		log.Fatalf("error preparing check setting statement: %v", err)
 	}
 	defer checkSettingStmt.Close()
 
@@ -179,7 +196,7 @@ func WukalaPersonaService() error {
 		)
 	`)
 	if err != nil {
-		return fmt.Errorf("error preparing insert setting statement: %v", err)
+		log.Fatalf("error preparing insert setting statement: %v", err)
 	}
 	defer insertSettingStmt.Close()
 
@@ -194,9 +211,9 @@ func WukalaPersonaService() error {
 		duplicatePhones = make([]DuplicatePhoneInfoWukala, 0)
 	)
 
-	rows, err := prodIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
+	rows, err := devIdentityDB.Query(`SELECT id FROM "user" WHERE role = 'wukala'`)
 	if err != nil {
-		return fmt.Errorf("error querying user data: %v", err)
+		log.Fatalf("error querying user data: %v", err)
 	}
 	defer rows.Close()
 
@@ -204,7 +221,7 @@ func WukalaPersonaService() error {
 		var userID string
 		err := rows.Scan(&userID)
 		if err != nil {
-			return fmt.Errorf("error scanning user ID: %v", err)
+			log.Fatalf("error scanning user ID: %v", err)
 		}
 
 		var (
@@ -257,7 +274,7 @@ func WukalaPersonaService() error {
 			bar.Add(1)
 			continue
 		} else if err != nil {
-			return fmt.Errorf("error querying source data for user %s: %v", userID, err)
+			log.Fatalf("error querying source data for user %s: %v", userID, err)
 		}
 
 		// Check for duplicate phone number
@@ -265,7 +282,7 @@ func WukalaPersonaService() error {
 			var count int
 			err = checkPhoneStmt.QueryRow(phone.String, userID).Scan(&count)
 			if err != nil {
-				return fmt.Errorf("error checking duplicate phone: %v", err)
+				log.Fatalf("error checking duplicate phone: %v", err)
 			}
 			if count > 0 {
 				duplicatePhones = append(duplicatePhones, DuplicatePhoneInfoWukala{
@@ -285,6 +302,18 @@ func WukalaPersonaService() error {
 
 		// Process wukala_setting first
 		if code.Valid && code.String != "" {
+			var codeCount int
+			err = checkCodeStmt.QueryRow(code.String, userID).Scan(&codeCount)
+			if err != nil {
+				log.Fatalf("error checking duplicate code: %v", err)
+			}
+			if codeCount > 0 {
+				// Jika code duplikat, set menjadi empty string
+				code.String = ""
+				code.Valid = false
+				log.Printf("Warning: Duplicate code found for user %s, setting to empty", userID)
+			}
+
 			// Truncate code to 8 chars if needed
 			referralCode := code.String
 			if len(referralCode) > 8 {
@@ -323,7 +352,7 @@ func WukalaPersonaService() error {
 			var codeExists int
 			err = checkSettingStmt.QueryRow(referralCode).Scan(&codeExists)
 			if err != nil {
-				return fmt.Errorf("error checking existing referral code: %v", err)
+				log.Fatalf("error checking existing referral code: %v", err)
 			}
 
 			if codeExists == 0 {
@@ -357,7 +386,7 @@ func WukalaPersonaService() error {
 					nil,
 				)
 				if err != nil {
-					return fmt.Errorf("error inserting wukala setting for user %s: %v", userID, err)
+					log.Fatalf("error inserting wukala setting for user %s: %v", userID, err)
 				}
 			}
 		}
@@ -366,7 +395,7 @@ func WukalaPersonaService() error {
 		var exists int
 		err = checkPersonaStmt.QueryRow(userID).Scan(&exists)
 		if err != nil {
-			return fmt.Errorf("error checking existing record: %v", err)
+			log.Fatalf("error checking existing record: %v", err)
 		}
 
 		// Handle UUID values
@@ -410,9 +439,14 @@ func WukalaPersonaService() error {
 				nik.String, instagram.String, accountBank.String,
 				accountNumber.String, accountName.String, address.String,
 				cityIDValue, approvedByValue, approvedAt.Time,
+				code.String,  // code
+				feeType,      // fee_type
+				fee,          // fee
+				discountType, // discount_type
+				discount,     // discount
 			)
 			if err != nil {
-				return fmt.Errorf("error updating record for user %s: %v", userID, err)
+				log.Fatalf("error updating record for user %s: %v", userID, err)
 			}
 			updateCount++
 		} else {
@@ -423,9 +457,14 @@ func WukalaPersonaService() error {
 				nik.String, instagram.String, accountBank.String,
 				accountNumber.String, accountName.String, address.String,
 				cityIDValue, approvedByValue, approvedAt.Time,
+				code.String,  // code
+				feeType,      // fee_type
+				fee,          // fee
+				discountType, // discount_type
+				discount,     // discount
 			)
 			if err != nil {
-				return fmt.Errorf("error inserting record for user %s: %v", userID, err)
+				log.Fatalf("error inserting record for user %s: %v", userID, err)
 			}
 			insertCount++
 		}
@@ -437,12 +476,12 @@ func WukalaPersonaService() error {
 	// If we've made it here, commit both transactions
 	err = identityTx.Commit()
 	if err != nil {
-		return fmt.Errorf("error committing identity transaction: %v", err)
+		log.Fatalf("error committing identity transaction: %v", err)
 	}
 
 	err = umrahTx.Commit()
 	if err != nil {
-		return fmt.Errorf("error committing umrah transaction: %v", err)
+		log.Fatalf("error committing umrah transaction: %v", err)
 	}
 
 	duration := time.Since(startTime)
@@ -470,6 +509,4 @@ func WukalaPersonaService() error {
 		}
 		fmt.Printf("\nTotal nomor telepon duplikat: %d\n", len(duplicatePhones))
 	}
-
-	return nil
 }

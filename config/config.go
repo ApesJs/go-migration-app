@@ -7,51 +7,35 @@ import (
 )
 
 type Config struct {
-	LocalIdentityDBHost         string
-	LocalIdentityDBPort         string
-	LocalIdentityDBName         string
-	LocalIdentityDBUser         string
-	LocalIdentityDBPassword     string
-	LocalUmrahDBHost            string
-	LocalUmrahDBPort            string
-	LocalUmrahDBName            string
-	LocalUmrahDBUser            string
-	LocalUmrahDBPassword        string
-	LocalGeneralDBHost          string
-	LocalGeneralDBPort          string
-	LocalGeneralDBName          string
-	LocalGeneralDBUser          string
-	LocalGeneralDBPassword      string
-	DevIdentityDBHost           string
-	DevIdentityDBPort           string
-	DevIdentityDBName           string
-	DevIdentityDBUser           string
-	DevIdentityDBPassword       string
-	DevUmrahDBHost              string
-	DevUmrahDBPort              string
-	DevUmrahDBName              string
-	DevUmrahDBUser              string
-	DevUmrahDBPassword          string
-	DevGeneralDBHost            string
-	DevGeneralDBPort            string
-	DevGeneralDBName            string
-	DevGeneralDBUser            string
-	DevGeneralDBPassword        string
-	ProdExistingUmrahDBHost     string
-	ProdExistingUmrahDBPort     string
-	ProdExistingUmrahDBName     string
-	ProdExistingUmrahDBUser     string
-	ProdExistingUmrahDBPassword string
-	ProdIdentityDBHost          string
-	ProdIdentityDBPort          string
-	ProdIdentityDBName          string
-	ProdIdentityDBUser          string
-	ProdIdentityDBPassword      string
-	ProdUmrahDBHost             string
-	ProdUmrahDBPort             string
-	ProdUmrahDBName             string
-	ProdUmrahDBUser             string
-	ProdUmrahDBPassword         string
+	LocalIdentityDBName string
+	LocalUmrahDBName    string
+	LocalGeneralDBName  string
+	LocalDBHost         string
+	LocalDBPort         string
+	LocalDBUser         string
+	LocalDBPassword     string
+
+	DevIdentityDBName string
+	DevUmrahDBName    string
+	DevGeneralDBName  string
+	DevDBHost         string
+	DevDBPort         string
+	DevDBUser         string
+	DevDBPassword     string
+
+	ProdIdentityDBName string
+	ProdUmrahDBName    string
+	ProdGeneralDBName  string
+	ProdDBHost         string
+	ProdDBPort         string
+	ProdDBUser         string
+	ProdDBPassword     string
+
+	ProdExistingDBName     string
+	ProdExistingDBHost     string
+	ProdExistingDBPort     string
+	ProdExistingDBUser     string
+	ProdExistingDBPassword string
 }
 
 func LoadConfig() (Config, error) {
@@ -60,63 +44,42 @@ func LoadConfig() (Config, error) {
 	}
 
 	config := Config{
-		LocalIdentityDBHost:         os.Getenv("LOCAL_IDENTITY_DB_HOST"),
-		LocalIdentityDBPort:         os.Getenv("LOCAL_IDENTITY_DB_PORT"),
-		LocalIdentityDBName:         os.Getenv("LOCAL_IDENTITY_DB_NAME"),
-		LocalIdentityDBUser:         os.Getenv("LOCAL_IDENTITY_DB_USER"),
-		LocalIdentityDBPassword:     os.Getenv("LOCAL_IDENTITY_DB_PASSWORD"),
-		LocalUmrahDBHost:            os.Getenv("LOCAL_UMRAH_DB_HOST"),
-		LocalUmrahDBPort:            os.Getenv("LOCAL_UMRAH_DB_PORT"),
-		LocalUmrahDBName:            os.Getenv("LOCAL_UMRAH_DB_NAME"),
-		LocalUmrahDBUser:            os.Getenv("LOCAL_UMRAH_DB_USER"),
-		LocalUmrahDBPassword:        os.Getenv("LOCAL_UMRAH_DB_PASSWORD"),
-		LocalGeneralDBHost:          os.Getenv("LOCAL_GENERAL_DB_HOST"),
-		LocalGeneralDBPort:          os.Getenv("LOCAL_GENERAL_DB_PORT"),
-		LocalGeneralDBName:          os.Getenv("LOCAL_GENERAL_DB_NAME"),
-		LocalGeneralDBUser:          os.Getenv("LOCAL_GENERAL_DB_USER"),
-		LocalGeneralDBPassword:      os.Getenv("LOCAL_GENERAL_DB_PASSWORD"),
-		DevIdentityDBHost:           os.Getenv("DEV_IDENTITY_DB_HOST"),
-		DevIdentityDBPort:           os.Getenv("DEV_IDENTITY_DB_PORT"),
-		DevIdentityDBName:           os.Getenv("DEV_IDENTITY_DB_NAME"),
-		DevIdentityDBUser:           os.Getenv("DEV_IDENTITY_DB_USER"),
-		DevIdentityDBPassword:       os.Getenv("DEV_IDENTITY_DB_PASSWORD"),
-		DevUmrahDBHost:              os.Getenv("DEV_UMRAH_DB_HOST"),
-		DevUmrahDBPort:              os.Getenv("DEV_UMRAH_DB_PORT"),
-		DevUmrahDBName:              os.Getenv("DEV_UMRAH_DB_NAME"),
-		DevUmrahDBUser:              os.Getenv("DEV_UMRAH_DB_USER"),
-		DevUmrahDBPassword:          os.Getenv("DEV_UMRAH_DB_PASSWORD"),
-		DevGeneralDBHost:            os.Getenv("DEV_GENERAL_DB_HOST"),
-		DevGeneralDBPort:            os.Getenv("DEV_GENERAL_DB_PORT"),
-		DevGeneralDBName:            os.Getenv("DEV_GENERAL_DB_NAME"),
-		DevGeneralDBUser:            os.Getenv("DEV_GENERAL_DB_USER"),
-		DevGeneralDBPassword:        os.Getenv("DEV_GENERAL_DB_PASSWORD"),
-		ProdExistingUmrahDBHost:     os.Getenv("PROD_EXISTING_UMRAH_DB_HOST"),
-		ProdExistingUmrahDBPort:     os.Getenv("PROD_EXISTING_UMRAH_DB_PORT"),
-		ProdExistingUmrahDBName:     os.Getenv("PROD_EXISTING_UMRAH_DB_NAME"),
-		ProdExistingUmrahDBUser:     os.Getenv("PROD_EXISTING_UMRAH_DB_USER"),
-		ProdExistingUmrahDBPassword: os.Getenv("PROD_EXISTING_UMRAH_DB_PASSWORD"),
-		ProdIdentityDBHost:          os.Getenv("PROD_IDENTITY_DB_HOST"),
-		ProdIdentityDBPort:          os.Getenv("PROD_IDENTITY_DB_PORT"),
-		ProdIdentityDBName:          os.Getenv("PROD_IDENTITY_DB_NAME"),
-		ProdIdentityDBUser:          os.Getenv("PROD_IDENTITY_DB_USER"),
-		ProdIdentityDBPassword:      os.Getenv("PROD_IDENTITY_DB_PASSWORD"),
-		ProdUmrahDBHost:             os.Getenv("PROD_UMRAH_DB_HOST"),
-		ProdUmrahDBPort:             os.Getenv("PROD_UMRAH_DB_PORT"),
-		ProdUmrahDBName:             os.Getenv("PROD_UMRAH_DB_NAME"),
-		ProdUmrahDBUser:             os.Getenv("PROD_UMRAH_DB_USER"),
-		ProdUmrahDBPassword:         os.Getenv("PROD_UMRAH_DB_PASSWORD"),
+		LocalIdentityDBName: os.Getenv("LOCAL_IDENTITY_DB_NAME"),
+		LocalUmrahDBName:    os.Getenv("LOCAL_UMRAH_DB_NAME"),
+		LocalGeneralDBName:  os.Getenv("LOCAL_GENERAL_DB_NAME"),
+		LocalDBHost:         os.Getenv("LOCAL_DB_HOST"),
+		LocalDBPort:         os.Getenv("LOCAL_DB_PORT"),
+		LocalDBUser:         os.Getenv("LOCAL_DB_USER"),
+		LocalDBPassword:     os.Getenv("LOCAL_DB_PASSWORD"),
+
+		DevIdentityDBName: os.Getenv("DEV_IDENTITY_DB_NAME"),
+		DevUmrahDBName:    os.Getenv("DEV_UMRAH_DB_NAME"),
+		DevGeneralDBName:  os.Getenv("DEV_GENERAL_DB_NAME"),
+		DevDBHost:         os.Getenv("DEV_DB_HOST"),
+		DevDBPort:         os.Getenv("DEV_DB_PORT"),
+		DevDBUser:         os.Getenv("DEV_DB_USER"),
+		DevDBPassword:     os.Getenv("DEV_DB_PASSWORD"),
+
+		ProdIdentityDBName: os.Getenv("PROD_IDENTITY_DB_NAME"),
+		ProdUmrahDBName:    os.Getenv("PROD_UMRAH_DB_NAME"),
+		ProdGeneralDBName:  os.Getenv("PROD_GENERAL_DB_NAME"),
+		ProdDBHost:         os.Getenv("PROD_DB_HOST"),
+		ProdDBPort:         os.Getenv("PROD_DB_PORT"),
+		ProdDBUser:         os.Getenv("PROD_DB_USER"),
+		ProdDBPassword:     os.Getenv("PROD_DB_PASSWORD"),
+
+		ProdExistingDBName:     os.Getenv("PROD_EXISTING_DB_NAME"),
+		ProdExistingDBHost:     os.Getenv("PROD_EXISTING_DB_HOST"),
+		ProdExistingDBPort:     os.Getenv("PROD_EXISTING_DB_PORT"),
+		ProdExistingDBUser:     os.Getenv("PROD_EXISTING_DB_USER"),
+		ProdExistingDBPassword: os.Getenv("PROD_EXISTING_DB_PASSWORD"),
 	}
 
 	// Validasi konfigurasi
-	if config.LocalIdentityDBName == "" || config.LocalIdentityDBUser == "" || config.LocalIdentityDBPassword == "" ||
-		config.LocalUmrahDBName == "" || config.LocalUmrahDBUser == "" || config.LocalUmrahDBPassword == "" ||
-		config.LocalGeneralDBName == "" || config.LocalGeneralDBUser == "" || config.LocalGeneralDBPassword == "" ||
-		config.DevUmrahDBName == "" || config.DevUmrahDBUser == "" || config.DevUmrahDBPassword == "" ||
-		config.DevGeneralDBName == "" || config.DevGeneralDBUser == "" || config.DevGeneralDBPassword == "" ||
-		config.ProdExistingUmrahDBName == "" || config.ProdExistingUmrahDBUser == "" || config.ProdExistingUmrahDBPassword == "" ||
-		config.ProdIdentityDBName == "" || config.ProdIdentityDBUser == "" || config.ProdIdentityDBPassword == "" ||
-		config.ProdUmrahDBName == "" || config.ProdUmrahDBUser == "" || config.ProdUmrahDBPassword == "" ||
-		config.DevIdentityDBName == "" || config.DevIdentityDBUser == "" || config.DevIdentityDBPassword == "" {
+	if config.LocalIdentityDBName == "" || config.LocalUmrahDBName == "" || config.LocalGeneralDBName == "" || config.LocalDBHost == "" || config.LocalDBPort == "" || config.LocalDBUser == "" || config.LocalDBPassword == "" ||
+		config.DevIdentityDBName == "" || config.DevUmrahDBName == "" || config.DevGeneralDBName == "" || config.DevDBHost == "" || config.DevDBPort == "" || config.DevDBUser == "" || config.DevDBPassword == "" ||
+		config.ProdIdentityDBName == "" || config.ProdUmrahDBName == "" || config.ProdGeneralDBName == "" || config.ProdDBHost == "" || config.ProdDBPort == "" || config.ProdDBUser == "" || config.ProdDBPassword == "" ||
+		config.ProdExistingDBName == "" || config.ProdExistingDBHost == "" || config.ProdExistingDBPort == "" || config.ProdExistingDBUser == "" || config.ProdExistingDBPassword == "" {
 		return Config{}, fmt.Errorf("missing required environment variables")
 	}
 
